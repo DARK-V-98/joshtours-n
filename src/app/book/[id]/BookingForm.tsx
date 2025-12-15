@@ -8,18 +8,17 @@ import Image from "next/image";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
+import { format, isWithinInterval, parseISO, eachDayOfInterval } from "date-fns";
 
 import { Car } from "@/lib/data";
 import { createBookingRequest } from "@/lib/bookingActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar as CalendarIcon, CheckCircle, Loader2, Phone, Mail, User, Car as CarIcon, ArrowLeft, Route, UploadCloud } from "lucide-react";
+import { Calendar as CalendarIcon, CheckCircle, Loader2, Phone, Mail, User, Car as CarIcon, ArrowLeft, Route, UploadCloud, Eye } from "lucide-react";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,6 +26,14 @@ import {
 } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -39,10 +46,25 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 const fileSchema = z.custom<File>((val) => val instanceof File, "Please upload a file")
   .refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), ".jpg, .jpeg, .png and .webp files are accepted.");
 
-const bookingFormSchema = z.object({
-  // Booking Details
+// We receive booked dates as strings, so we need a custom preprocessor for Zod
+const dateRangeWithBookingsSchema = (bookedDateStrings: string[]) => z.object({
   pickupDate: z.date({ required_error: "A pickup date is required." }),
   returnDate: z.date({ required_error: "A return date is required." }),
+}).refine((data) => {
+    if (!data.pickupDate || !data.returnDate) return true; // Let other rules handle this
+    const range = { start: data.pickupDate, end: data.returnDate };
+    const bookedDates = bookedDateStrings.map(d => parseISO(d));
+    // Check if any of the booked dates fall within the selected interval
+    return !bookedDates.some(bookedDate => isWithinInterval(bookedDate, range));
+}, {
+    message: "The selected date range includes unavailable dates. Please check the availability calendar and choose a different range.",
+    path: ["returnDate"], // Apply error to the second date picker
+});
+
+
+const bookingFormSchema = (bookedDateStrings: string[]) => z.object({
+  // Booking Details
+  dateRange: dateRangeWithBookingsSchema(bookedDateStrings),
   estimatedKm: z.coerce.number().min(1, "Please enter an estimated mileage.").optional(),
   requests: z.string().max(500, "Message cannot exceed 500 characters.").optional(),
 
@@ -81,9 +103,9 @@ const bookingFormSchema = z.object({
   guarantorLicenseFront: fileSchema.optional(),
   guarantorLicenseBack: fileSchema.optional(),
 })
-.refine((data) => data.returnDate > data.pickupDate, {
+.refine((data) => data.dateRange.returnDate > data.dateRange.pickupDate, {
   message: "Return date must be after pickup date.",
-  path: ["returnDate"],
+  path: ["dateRange.returnDate"],
 })
 .superRefine((data, ctx) => {
     // Customer validation
@@ -150,7 +172,7 @@ const bookingFormSchema = z.object({
 });
 
 
-type BookingFormValues = z.infer<typeof bookingFormSchema>;
+type BookingFormValues = z.infer<ReturnType<typeof bookingFormSchema>>;
 
 interface BookingFormProps {
     car: Car;
@@ -161,9 +183,18 @@ export default function BookingForm({ car }: BookingFormProps) {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [bookedDays, setBookedDays] = useState<Date[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Parse dates only on the client-side to avoid hydration errors
+  useEffect(() => {
+    const parsedDates = car.bookedDates.map(dateStr => parseISO(dateStr));
+    setBookedDays(parsedDates);
+    setIsMounted(true);
+  }, [car.bookedDates]);
 
   const form = useForm<BookingFormValues>({
-    resolver: zodResolver(bookingFormSchema),
+    resolver: zodResolver(bookingFormSchema(car.bookedDates)),
     defaultValues: {
       requests: "",
       estimatedKm: '' as any, 
@@ -173,6 +204,10 @@ export default function BookingForm({ car }: BookingFormProps) {
       guarantorName: '',
       guarantorPhone: '',
       guarantorNicOrPassport: '',
+      dateRange: {
+        pickupDate: undefined,
+        returnDate: undefined,
+      },
     },
   });
 
@@ -182,7 +217,6 @@ export default function BookingForm({ car }: BookingFormProps) {
   const customerBillType = form.watch('customerBillType');
   const guarantorIdType = form.watch('guarantorIdType');
   const guarantorBillType = form.watch('guarantorBillType');
-
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -211,12 +245,12 @@ export default function BookingForm({ car }: BookingFormProps) {
     }
     
     const documentFormData = new FormData();
-    const fileFields: (keyof BookingFormValues)[] = [
+    const fileFields = [
         'customerNicFront', 'customerNicBack', 'customerLicenseFront', 'customerLicenseBack',
         'customerPassportFront', 'customerPassportBack', 'customerLightBill', 'customerWaterBill',
         'guarantorNicFront', 'guarantorNicBack', 'guarantorLicenseFront', 'guarantorLicenseBack',
         'guarantorPassportFront', 'guarantorPassportBack', 'guarantorLightBill', 'guarantorWaterBill'
-    ];
+    ] as const;
 
     fileFields.forEach(field => {
         const file = values[field] as File | undefined;
@@ -225,14 +259,13 @@ export default function BookingForm({ car }: BookingFormProps) {
         }
     });
 
-    // Create a separate object for Firestore data to avoid sending file objects
     const bookingData = {
         carId: car.id,
         carName: car.name,
         userId: user.uid,
         customerEmail: user.email || 'N/A',
-        pickupDate: format(values.pickupDate, 'yyyy-MM-dd'),
-        returnDate: format(values.returnDate, 'yyyy-MM-dd'),
+        pickupDate: format(values.dateRange.pickupDate, 'yyyy-MM-dd'),
+        returnDate: format(values.dateRange.returnDate, 'yyyy-MM-dd'),
         estimatedKm: values.estimatedKm,
         requests: values.requests,
         customerName: values.customerName,
@@ -246,8 +279,6 @@ export default function BookingForm({ car }: BookingFormProps) {
     };
     
     await createBookingRequest(bookingData, documentFormData);
-    // The UI now optimistically assumes success.
-    // If there's an error, the FirebaseErrorListener will catch it.
     setIsSubmitted(true);
     form.reset();
   }
@@ -358,31 +389,62 @@ export default function BookingForm({ car }: BookingFormProps) {
                             <CardDescription>Confirm your dates and details to request a booking for the {car.name}.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="pickupDate" render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Pickup Date</FormLabel>
-                                    <Popover><PopoverTrigger asChild><FormControl>
-                                    <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} initialFocus /></PopoverContent></Popover>
-                                    <FormMessage />
-                                </FormItem>
-                                )}/>
-                                <FormField control={form.control} name="returnDate" render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Return Date</FormLabel>
-                                    <Popover><PopoverTrigger asChild><FormControl>
-                                    <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < (form.getValues("pickupDate") || new Date())} initialFocus /></PopoverContent></Popover>
-                                    <FormMessage />
-                                </FormItem>
-                                )}/>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <FormLabel>Select Your Dates</FormLabel>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="sm" type="button">
+                                                <Eye className="mr-2 h-4 w-4" />
+                                                View Availability
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-min">
+                                            <DialogHeader>
+                                                <DialogTitle>Availability for {car.name}</DialogTitle>
+                                                <DialogDescription>
+                                                    Dates in red are already booked.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            {isMounted && (
+                                                <Calendar
+                                                    mode="multiple"
+                                                    disabled={bookedDays}
+                                                    className="rounded-md border"
+                                                />
+                                            )}
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="dateRange.pickupDate" render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <Popover><PopoverTrigger asChild><FormControl>
+                                        <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP") : <span>Pickup Date</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={[{ before: new Date() }, ...bookedDays]} initialFocus />
+                                        </PopoverContent></Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="dateRange.returnDate" render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <Popover><PopoverTrigger asChild><FormControl>
+                                        <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP") : <span>Return Date</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={[{ before: form.getValues("dateRange.pickupDate") || new Date() }, ...bookedDays]} initialFocus />
+                                        </PopoverContent></Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}/>
+                                </div>
+                                 <FormMessage>{form.formState.errors.dateRange?.message}</FormMessage>
                             </div>
                             <FormField control={form.control} name="estimatedKm" render={({ field }) => (
                                 <FormItem><FormLabel>Estimated Mileage (Optional)</FormLabel><FormControl>
