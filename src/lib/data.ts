@@ -20,6 +20,7 @@ export interface Car {
   specifications: string[]; // List of features
   bookedDates: string[]; // Array of dates in 'YYYY-MM-DD' format
   createdAt?: string; // Stored as a string after conversion
+  description?: string;
 }
 
 export interface AdminCar extends Omit<Car, 'createdAt' | 'bookedDates' | 'pricePerDay' | 'specifications'> {
@@ -47,6 +48,7 @@ function toCarObject(doc: any): Car {
       specifications: data.specifications || [],
       bookedDates: data.bookedDates || [], // Directly use the stored array
       createdAt,
+      description: data.description || `A reliable ${data.type || 'car'} for your travels.`,
     };
 }
 
