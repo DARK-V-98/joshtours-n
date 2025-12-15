@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Car } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, ArrowLeft, Check } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
