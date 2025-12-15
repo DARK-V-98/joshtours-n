@@ -20,7 +20,7 @@ function Hero() {
       {/* Background Image */}
       <div className="absolute inset-0">
         <Image
-          src="/car1.png"
+          src="/jtr.png"
           alt="Rental car"
           fill
           className="object-cover opacity-10"
@@ -71,7 +71,7 @@ function Hero() {
               {[
                 { icon: Users, label: "500+ Happy Customers", desc: "Trusted by many" },
                 { icon: Clock, label: "24/7 Support", desc: "Always available" },
-                { icon: Star, label: "Best Rates", desc: "Price guaranteed" },
+                { icon: Shield, label: "All Vehicles Insured", desc: "Complete coverage" },
               ].map(({ icon: Icon, label, desc }) => (
                 <div key={label} className="flex items-center gap-4 p-4 rounded-xl glass-gold">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -305,7 +305,7 @@ function CTASection() {
       {/* Background */}
       <div className="absolute inset-0">
         <Image
-          src="/car1.png"
+          src="/jtr.png"
           alt="Car interior"
           fill
           className="w-full h-full object-cover opacity-10"
