@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Car } from "@/lib/data";
@@ -20,10 +20,13 @@ interface CarDetailClientProps {
 
 export default function CarDetailClient({ car }: CarDetailClientProps) {
   const router = useRouter();
+  const [bookedDays, setBookedDays] = useState<Date[]>([]);
 
-  // Prepare dates for the calendar, ensuring they are parsed correctly
-  // This helps prevent hydration errors by being explicit about the date objects.
-  const bookedDays = car.bookedDates.map(dateStr => parseISO(`${dateStr}T12:00:00Z`));
+  useEffect(() => {
+    // This moves the date parsing to the client-side only, fixing hydration errors.
+    const parsedBookedDays = car.bookedDates.map(dateStr => parseISO(dateStr));
+    setBookedDays(parsedBookedDays);
+  }, [car.bookedDates]);
 
   return (
     <div className="container mx-auto px-4 py-8">
