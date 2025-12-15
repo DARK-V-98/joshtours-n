@@ -1,0 +1,81 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // =================================
+    // Helper Functions
+    // =================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check the 'role' field in the user's own document in the /users collection
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // =================================
+    // User Profiles
+    // =================================
+    match /users/{userId} {
+      // Users can read and write to their own profile document. No one else can.
+      allow read, write: if isSignedIn() && isOwner(userId);
+      // A user can create their own profile document, typically on sign up.
+      allow create: if isSignedIn() && isOwner(userId);
+    }
+
+    // =================================
+    // Cars
+    // =================================
+    match /cars/{carId} {
+      // Anyone can view the car listings.
+      allow read: if true;
+      // Only admins can add, update, or delete cars.
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // =================================
+    // Booking Requests
+    // =================================
+    match /bookingRequests/{bookingId} {
+      // Any authenticated user can create a booking request.
+      allow create: if isSignedIn();
+      // Only the user who created the booking or an admin can read it.
+      allow read: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+      // Admins can update any booking (e.g., to confirm/cancel).
+      allow update: if isSignedIn() && isAdmin();
+      // Users can delete (cancel) their own bookings, and admins can delete any booking.
+      allow delete: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+    }
+
+    // =================================
+    // Rental Agreements
+    // =================================
+    match /rentalAgreements/{agreementId} {
+      // Admins can read/write any agreement.
+      // Users can read an agreement if they are the owner of the original booking request.
+      allow read: if isSignedIn() && 
+                    (isAdmin() || isOwner(get(/databases/$(database)/documents/bookingRequests/$(agreementId)).data.userId));
+      // Only admins can create or modify rental agreements.
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // =================================
+    // Testimonials
+    // =================================
+    match /testimonials/{testimonialId} {
+      // Anyone can read testimonials that have been approved.
+      allow read: if resource.data.status == 'approved';
+      // Any signed-in user can create a new testimonial.
+      allow create: if isSignedIn();
+      // Only admins can update (approve/un-approve) or delete testimonials.
+      allow update, delete: if isSignedIn() && isAdmin();
+    }
+  }
+}
