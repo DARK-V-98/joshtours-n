@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import Link from "next/link";
 import { parseISO } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CarDetailClientProps {
   car: Car;
@@ -21,8 +22,10 @@ interface CarDetailClientProps {
 export default function CarDetailClient({ car }: CarDetailClientProps) {
   const router = useRouter();
   const [bookedDays, setBookedDays] = useState<Date[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     // This moves the date parsing to the client-side only, fixing hydration errors.
     const parsedBookedDays = car.bookedDates.map(dateStr => parseISO(dateStr));
     setBookedDays(parsedBookedDays);
@@ -122,11 +125,15 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
             <CardDescription>View dates that are already booked for this vehicle.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Calendar
-                mode="multiple"
-                disabled={bookedDays}
-                className="rounded-md border"
-            />
+            {isMounted ? (
+                <Calendar
+                    mode="multiple"
+                    disabled={bookedDays}
+                    className="rounded-md border"
+                />
+            ) : (
+                <Skeleton className="h-[288px] w-[282px] rounded-md" />
+            )}
           </CardContent>
         </Card>
       </div>
