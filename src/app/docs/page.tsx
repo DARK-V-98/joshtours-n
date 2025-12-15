@@ -68,7 +68,7 @@ export default function DocsPage() {
                 <CardTitle className="flex items-center gap-2"><ImageIcon className="h-5 w-5"/>File Uploads</CardTitle>
               </CardHeader>
               <CardContent>
-                 <p className="text-muted-foreground">All file uploads are handled by **Firebase Storage**. When a user submits documents, the files are uploaded to a unique path (`booking-documents/{bookingId}/{fileName}`), and the resulting download URLs are stored in the corresponding `bookingRequests` document.</p>
+                 <p className="text-muted-foreground">All file uploads are handled by **Firebase Storage**. When a user submits documents, the files are uploaded to a unique path (`booking-documents/&#123;bookingId&#125;/&#123;fileName&#125;`), and the resulting download URLs are stored in the corresponding `bookingRequests` document.</p>
               </CardContent>
             </Card>
           </div>
