@@ -12,6 +12,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import Link from "next/link";
+import { parseISO } from "date-fns";
 
 interface CarDetailClientProps {
   car: Car;
@@ -19,6 +20,10 @@ interface CarDetailClientProps {
 
 export default function CarDetailClient({ car }: CarDetailClientProps) {
   const router = useRouter();
+
+  // Prepare dates for the calendar, ensuring they are parsed correctly
+  // This helps prevent hydration errors by being explicit about the date objects.
+  const bookedDays = car.bookedDates.map(dateStr => parseISO(`${dateStr}T12:00:00Z`));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -116,7 +121,7 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
           <CardContent className="flex justify-center">
             <Calendar
                 mode="multiple"
-                disabledDays={car.bookedDates.map(dateStr => new Date(dateStr))}
+                disabled={bookedDays}
                 className="rounded-md border"
             />
           </CardContent>
