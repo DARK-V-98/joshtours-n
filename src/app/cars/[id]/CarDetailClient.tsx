@@ -6,16 +6,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Car } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, ArrowLeft, Check, Info } from "lucide-react";
+import { CheckCircle, XCircle, ArrowLeft, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import Link from "next/link";
-import { parse, startOfDay, isSameDay } from "date-fns";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DateRange } from "react-day-picker";
-
 
 interface CarDetailClientProps {
   car: Car;
@@ -23,29 +19,6 @@ interface CarDetailClientProps {
 
 export default function CarDetailClient({ car }: CarDetailClientProps) {
   const router = useRouter();
-  const [range, setRange] = useState<DateRange | undefined>();
-  
-  // Memoize the disabled dates calculation to avoid re-computing on every render
-  const bookedDateObjects = useMemo(() => {
-    return car.bookedDates.map(d => {
-        try {
-            return startOfDay(parse(d, 'yyyy-MM-dd', new Date()));
-        } catch (e) {
-            console.warn(`Invalid date format found in bookedDates: ${d}`);
-            return null;
-        }
-    }).filter(d => d !== null) as Date[];
-  }, [car.bookedDates]);
-
-  // Disable past dates and already booked dates
-  const isDisabled = (day: Date) => {
-    const today = startOfDay(new Date());
-    if (day < today) return true;
-    
-    return bookedDateObjects.some(
-      (disabledDate) => isSameDay(day, disabledDate)
-    );
-  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -108,14 +81,6 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
             </div>
            )}
 
-          <Alert className="mb-6">
-            <Info className="h-4 w-4" />
-            <AlertTitle>Check Availability First!</AlertTitle>
-            <AlertDescription>
-              Please review the calendar below to see booked dates before proceeding with your rental.
-            </AlertDescription>
-          </Alert>
-
           <div className="flex items-stretch gap-4 mb-6">
             <Button size="lg" className="flex-1 h-12 text-lg" disabled={!car.isAvailable} asChild>
                 <Link href={`/book/${car.id}`}>
@@ -145,22 +110,13 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
       <div className="mt-12">
         <Card>
           <CardHeader>
-            <CardTitle>Check Availability</CardTitle>
-            <CardDescription>Select a date range to see if this car is available for your trip.</CardDescription>
+            <CardTitle>Availability Calendar</CardTitle>
+            <CardDescription>View dates that are already booked for this vehicle.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
-                mode="range"
-                selected={range}
-                onSelect={setRange}
-                disabled={isDisabled}
-                modifiers={{
-                    booked: bookedDateObjects,
-                }}
-                modifiersClassNames={{
-                    booked: 'bg-red-200 text-red-900 opacity-50 cursor-not-allowed day-outside:bg-red-200/50 day-outside:text-red-900/50',
-                    selected: 'bg-green-500 text-white hover:bg-green-600 focus:bg-green-600',
-                }}
+                mode="multiple"
+                disabledDays={car.bookedDates.map(dateStr => new Date(dateStr))}
                 className="rounded-md border"
             />
           </CardContent>
