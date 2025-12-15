@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import Link from "next/link";
 import { parse, startOfDay, isSameDay } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DateRange } from "react-day-picker";
 
 
 interface CarDetailClientProps {
@@ -22,6 +23,7 @@ interface CarDetailClientProps {
 
 export default function CarDetailClient({ car }: CarDetailClientProps) {
   const router = useRouter();
+  const [range, setRange] = useState<DateRange | undefined>();
   
   // Memoize the disabled dates calculation to avoid re-computing on every render
   const bookedDateObjects = useMemo(() => {
@@ -144,13 +146,22 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
         <Card>
           <CardHeader>
             <CardTitle>Check Availability</CardTitle>
+            <CardDescription>Select a date range to see if this car is available for your trip.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
-                mode="multiple"
-                selected={bookedDateObjects}
-                className="rounded-md border"
+                mode="range"
+                selected={range}
+                onSelect={setRange}
                 disabled={isDisabled}
+                modifiers={{
+                    booked: bookedDateObjects,
+                }}
+                modifiersClassNames={{
+                    booked: 'bg-red-200 text-red-900 opacity-50 cursor-not-allowed day-outside:bg-red-200/50 day-outside:text-red-900/50',
+                    selected: 'bg-green-500 text-white hover:bg-green-600 focus:bg-green-600',
+                }}
+                className="rounded-md border"
             />
           </CardContent>
         </Card>
