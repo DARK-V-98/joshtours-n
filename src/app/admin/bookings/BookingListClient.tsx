@@ -109,16 +109,16 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
     });
   };
 
-  const getStatusVariant = (status: string) => {
+  const getStatusClasses = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
-        return 'default';
+        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800';
       case 'pending':
-        return 'secondary';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-800';
       case 'canceled':
-        return 'destructive';
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800';
       default:
-        return 'outline';
+        return 'bg-secondary text-secondary-foreground border-border';
     }
   };
 
@@ -165,7 +165,7 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
                         Requested on {format(parseISO(booking.createdAt.split('T')[0]), "PPP")} | ID: <strong>{booking.id}</strong>
                       </CardDescription>
                     </div>
-                    <Badge variant={getStatusVariant(booking.status)} className="capitalize text-sm py-1 px-3 self-start">
+                    <Badge className={`capitalize text-sm py-1 px-3 self-start ${getStatusClasses(booking.status)}`}>
                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         {booking.status}
                     </Badge>
