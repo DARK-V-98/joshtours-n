@@ -1,7 +1,7 @@
 
 "use server";
 
-import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, getDoc, Timestamp, orderBy, updateDoc,getCountFromServer, arrayUnion, setDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, getDoc, Timestamp, orderBy, updateDoc,getCountFromServer, arrayUnion, arrayRemove, setDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, app } from "@/lib/firebase"; 
 import { revalidatePath } from "next/cache";
@@ -100,7 +100,7 @@ export interface BookingRequest extends BookingRequestData {
   createdAt: string; // ISO String
 }
 
-async function blockCarDates(carId: string, pickupDateStr: string, returnDateStr: string) {
+async function updateCarBookedDates(carId: string, pickupDateStr: string, returnDateStr: string, action: 'add' | 'remove') {
     if (!db) return;
     const carDocRef = doc(db, 'cars', carId);
 
@@ -109,10 +109,11 @@ async function blockCarDates(carId: string, pickupDateStr: string, returnDateStr
     const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
     const dateStrings = dateRange.map(date => format(date, 'yyyy-MM-dd'));
 
-    // Atomically add the new date strings to the array.
-    await updateDoc(carDocRef, {
-        bookedDates: arrayUnion(...dateStrings)
-    });
+    const updatePayload = action === 'add' 
+        ? { bookedDates: arrayUnion(...dateStrings) }
+        : { bookedDates: arrayRemove(...dateStrings) };
+    
+    await updateDoc(carDocRef, updatePayload);
 }
 
 export async function createBookingRequest(
@@ -148,7 +149,7 @@ export async function createBookingRequest(
 
     // If the booking is confirmed, block the dates on the car
     if (bookingStatus === 'confirmed') {
-        await blockCarDates(data.carId, data.pickupDate, data.returnDate);
+        await updateCarBookedDates(data.carId, data.pickupDate, data.returnDate, 'add');
     }
   } catch (serverError: any) {
     console.error("Error creating booking request:", serverError);
@@ -281,33 +282,46 @@ export async function getAllBookingRequests(): Promise<BookingRequest[]> {
   }
 }
 
-export async function updateBookingStatus(bookingId: string, status: 'confirmed' | 'canceled') {
+export async function updateBookingStatus(bookingId: string, status: 'confirmed' | 'canceled' | 'pending') {
     if (!db) {
         throw new Error("Database not initialized");
     }
 
     const bookingDocRef = doc(db, 'bookingRequests', bookingId);
-    
-    updateDoc(bookingDocRef, { status }).catch(async (serverError) => {
+    const bookingSnap = await getDoc(bookingDocRef);
+
+    if (!bookingSnap.exists()) {
+        throw new Error("Booking request not found.");
+    }
+    const bookingData = bookingSnap.data() as BookingRequestData;
+    const wasConfirmed = bookingData.status === 'confirmed';
+
+    try {
+        await updateDoc(bookingDocRef, { status });
+
+        // If status changes TO 'confirmed'
+        if (status === 'confirmed' && !wasConfirmed) {
+            await updateCarBookedDates(bookingData.carId, bookingData.pickupDate, bookingData.returnDate, 'add');
+        }
+
+        // If status changes FROM 'confirmed' to something else ('canceled' or 'pending')
+        if (wasConfirmed && status !== 'confirmed') {
+            await updateCarBookedDates(bookingData.carId, bookingData.pickupDate, bookingData.returnDate, 'remove');
+        }
+
+    } catch (serverError) {
         const permissionError = new FirestorePermissionError({
             path: bookingDocRef.path,
             operation: 'update',
             requestResourceData: { status },
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
-    });
-
-    if (status === 'confirmed') {
-        const bookingSnap = await getDoc(bookingDocRef);
-        if (bookingSnap.exists()) {
-            const bookingData = bookingSnap.data() as BookingRequestData;
-            await blockCarDates(bookingData.carId, bookingData.pickupDate, bookingData.returnDate);
-            revalidatePath(`/cars/${bookingData.carId}`);
-        }
+        throw new Error('Failed to update booking status.');
     }
 
     revalidatePath('/admin/bookings');
     revalidatePath('/my-bookings');
+    revalidatePath(`/cars/${bookingData.carId}`);
     revalidatePath('/cars');
 }
 

@@ -36,6 +36,7 @@ import {
   Shield,
   FileBadge,
   Globe,
+  RefreshCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
@@ -86,7 +87,7 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
   }, [initialBookings]);
 
 
-  const handleStatusUpdate = (bookingId: string, newStatus: 'confirmed' | 'canceled') => {
+  const handleStatusUpdate = (bookingId: string, newStatus: 'confirmed' | 'canceled' | 'pending') => {
     startUpdateTransition(async () => {
       try {
         await updateBookingStatus(bookingId, newStatus);
@@ -249,6 +250,16 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
                             </Button>
                             <Button variant="destructive" onClick={() => handleStatusUpdate(booking.id, 'canceled')} disabled={isUpdating}>
                                 <X className="mr-2"/> Reject
+                            </Button>
+                        </div>
+                    )}
+                    {booking.status === 'confirmed' && (
+                        <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => handleStatusUpdate(booking.id, 'pending')} disabled={isUpdating}>
+                                <RefreshCw className="mr-2 h-4 w-4"/> Mark as Pending
+                            </Button>
+                            <Button variant="destructive" onClick={() => handleStatusUpdate(booking.id, 'canceled')} disabled={isUpdating}>
+                                <X className="mr-2"/> Cancel Booking
                             </Button>
                         </div>
                     )}
