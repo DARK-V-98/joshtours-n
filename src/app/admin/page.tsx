@@ -29,7 +29,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Loader2, Upload, PlusCircle, DollarSign, Notebook, Edit, List, FilePlus, MessageSquare, FileCheck, FileSignature } from "lucide-react";
+import { Loader2, Upload, PlusCircle, DollarSign, Notebook, Edit, List, FilePlus, MessageSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CarList } from "@/components/admin/car-list";
 import Link from "next/link";
@@ -210,18 +210,6 @@ export default function AdminDashboard() {
                     <Link href="/admin/manual-booking">
                         <Edit className="mr-2" />
                         Manual Booking
-                    </Link>
-                </Button>
-                 <Button variant="secondary" asChild>
-                    <Link href="/admin/billing">
-                        <FileCheck className="mr-2" />
-                        Agreements & Billing
-                    </Link>
-                </Button>
-                <Button variant="secondary" asChild>
-                    <Link href="/admin/lease-agreement">
-                        <FileSignature className="mr-2" />
-                        Lease Agreement
                     </Link>
                 </Button>
             </CardContent>

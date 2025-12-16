@@ -36,8 +36,6 @@ import {
   Shield,
   FileBadge,
   Globe,
-  FilePlus,
-  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
@@ -45,6 +43,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 const DocumentLink = ({ url, label }: { url?: string; label: string }) => {
     if (!url) return null;
@@ -243,26 +242,16 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
                     <Separator className="my-6"/>
                     
                     {/* Action Area */}
-                    <div className="flex justify-end gap-2">
                      {booking.status === 'pending' && (
-                        <div className="flex flex-col sm:flex-row items-center gap-2">
-                            <Button onClick={() => handleStatusUpdate(booking.id, 'confirmed')} disabled={isUpdating} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
+                        <div className="flex justify-end gap-2">
+                            <Button onClick={() => handleStatusUpdate(booking.id, 'confirmed')} disabled={isUpdating} className="bg-green-600 hover:bg-green-700">
                                 <Check className="mr-2"/> Confirm
                             </Button>
-                            <Button variant="destructive" onClick={() => handleStatusUpdate(booking.id, 'canceled')} disabled={isUpdating} className="w-full sm:w-auto">
+                            <Button variant="destructive" onClick={() => handleStatusUpdate(booking.id, 'canceled')} disabled={isUpdating}>
                                 <X className="mr-2"/> Reject
                             </Button>
                         </div>
                     )}
-                    
-                    <Button asChild variant="default" size="sm">
-                        <Link href={`/agreement/${booking.id}`}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            View Agreement & Bill
-                        </Link>
-                    </Button>
-                    
-                    </div>
                 </CardContent>
             </Card>
           ))}
