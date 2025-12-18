@@ -9,6 +9,9 @@ import { revalidatePath } from "next/cache";
 
 // This function uploads images to Firebase Storage and returns their URLs.
 export async function uploadImages(formData: FormData): Promise<string[]> {
+  if (!app) {
+    throw new Error("Firebase not initialized");
+  }
   const storage = getStorage(app);
   const images = formData.getAll("images") as File[];
   
@@ -44,13 +47,15 @@ export async function addCar(carData: Omit<Car, "id" | "createdAt" | 'bookedDate
 
   try {
     const carsCollectionRef = collection(db, "cars");
-    await addDoc(carsCollectionRef, {
+    const carDocument = {
       ...carData,
+      specifications: carData.specifications ? (carData.specifications as unknown as string).split('\n').filter(spec => spec.trim() !== '') : [],
       images: imageUrls,
       dataAiHint: `${carData.type} car`,
       bookedDates: [],
       createdAt: serverTimestamp(),
-    });
+    };
+    await addDoc(carsCollectionRef, carDocument);
     revalidatePath('/admin');
     revalidatePath('/cars');
     revalidatePath('/');
