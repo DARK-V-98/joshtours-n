@@ -96,8 +96,8 @@ export function TestimonialList() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead><Skeleton className="h-5 w-24" /></TableHead>
-                                <TableHead><Skeleton className="h-5 w-48" /></TableHead>
-                                <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+                                <TableHead className="hidden sm:table-cell"><Skeleton className="h-5 w-48" /></TableHead>
+                                <TableHead className="hidden md:table-cell"><Skeleton className="h-5 w-20" /></TableHead>
                                 <TableHead className="text-right"><Skeleton className="h-5 w-16" /></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -105,8 +105,8 @@ export function TestimonialList() {
                             {[...Array(3)].map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+                                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-full" /></TableCell>
+                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
                                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                                 </TableRow>
                             ))}
@@ -132,9 +132,9 @@ export function TestimonialList() {
             <TableHeader>
                 <TableRow>
                 <TableHead>Customer</TableHead>
-                <TableHead>Comment</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="hidden sm:table-cell">Comment</TableHead>
+                <TableHead className="hidden md:table-cell">Rating</TableHead>
+                <TableHead className="hidden lg:table-cell">Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -145,18 +145,21 @@ export function TestimonialList() {
                     <TableCell className="font-medium">
                         <div className="font-bold">{testimonial.name}</div>
                         <div className="text-sm text-muted-foreground">{format(new Date(testimonial.createdAt), "PPP")}</div>
+                         <div className="lg:hidden mt-2">
+                             <Badge variant={testimonial.status === 'approved' ? 'default' : 'secondary'} className="capitalize">{testimonial.status}</Badge>
+                        </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                         <p className="max-w-xs truncate">{testimonial.comment}</p>
                     </TableCell>
-                     <TableCell>
+                     <TableCell className="hidden md:table-cell">
                         <div className="flex items-center">
                             {[...Array(5)].map((_, i) => (
                                 <Star key={i} className={`h-4 w-4 ${i < testimonial.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}/>
                             ))}
                         </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                         <Badge variant={testimonial.status === 'approved' ? 'default' : 'secondary'} className="capitalize">
                             {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                             {testimonial.status}

@@ -36,7 +36,7 @@ const testimonialSchema = z.object({
     .string()
     .min(10, 'Your testimonial must be at least 10 characters long.')
     .max(500, 'Your testimonial cannot exceed 500 characters.'),
-  rating: z.number().min(1).max(5),
+  rating: z.number().min(1, 'Please select a rating.').max(5),
 });
 
 type TestimonialFormValues = z.infer<typeof testimonialSchema>;
@@ -68,7 +68,7 @@ export default function AddTestimonialPage() {
   }, [user, authLoading, router, form]);
 
   useEffect(() => {
-    form.setValue('rating', rating);
+    form.setValue('rating', rating, { shouldValidate: true });
   }, [rating, form]);
 
   async function onSubmit(values: TestimonialFormValues) {
@@ -98,7 +98,7 @@ export default function AddTestimonialPage() {
   if (isSubmitted) {
       return (
          <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[70vh]">
-            <Card className="max-w-2xl text-center">
+            <Card className="max-w-2xl text-center p-4 sm:p-6">
                 <CardHeader>
                     <div className="mx-auto bg-green-100 dark:bg-green-900/50 rounded-full h-16 w-16 flex items-center justify-center">
                         <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
@@ -109,7 +109,7 @@ export default function AddTestimonialPage() {
                     <p className="text-muted-foreground">
                         Your testimonial has been submitted successfully and is now pending review. We appreciate you taking the time to share your experience.
                     </p>
-                    <Button size="lg" className="flex-1" asChild>
+                    <Button size="lg" className="flex-1 w-full" asChild>
                         <Link href="/my-bookings">
                             <ArrowLeft className="mr-2"/>Back to My Bookings
                         </Link>

@@ -89,7 +89,7 @@ export default function AdminDashboard() {
         eur: 45,
       },
       priceEnabled: true,
-      specifications: "5 Seats\nAutomatic Transmission\nAir Conditioning\nBluetooth",
+      specifications: "",
     },
   });
 
@@ -216,7 +216,7 @@ export default function AdminDashboard() {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="w-full overflow-x-auto h-auto justify-start sm:justify-center">
                 <TabsTrigger value="fleet">Manage Fleet</TabsTrigger>
                 <TabsTrigger value="add">Add New Car</TabsTrigger>
                 <TabsTrigger value="testimonials" className="relative">
