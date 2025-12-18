@@ -43,7 +43,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { TestimonialList } from "@/components/admin/testimonial-list";
 import { getPendingTestimonialCount } from "@/lib/testimonialActions";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const carFormSchema = z.object({
@@ -59,7 +58,6 @@ const carFormSchema = z.object({
   images: z
     .custom<FileList>()
     .refine((files) => files?.length >= 1, "Please add at least one image.")
-    .refine((files) => !files || Array.from(files).every((file) => file.size <= MAX_FILE_SIZE), `Max file size is 5MB.`)
     .refine(
       (files) => !files || Array.from(files).every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
       ".jpg, .jpeg, .png and .webp files are accepted."
@@ -130,7 +128,7 @@ export default function AdminDashboard() {
         isAvailable: values.isAvailable,
         pricePerDay: values.pricePerDay,
         priceEnabled: values.priceEnabled,
-        specifications: values.specifications ? values.specifications.split('\\n').filter(spec => spec.trim() !== '') : [],
+        specifications: values.specifications,
       };
 
       await addCar(carData, imageUrls);
@@ -373,7 +371,7 @@ export default function AdminDashboard() {
                                             <p className="mt-2 text-sm text-muted-foreground">
                                                 <span className="font-semibold">Click to upload</span> or drag and drop
                                             </p>
-                                            <p className="text-xs text-muted-foreground">PNG, JPG, JPEG, WEBP up to 5MB each</p>
+                                            <p className="text-xs text-muted-foreground">PNG, JPG, JPEG, WEBP</p>
                                         </div>
                                     </div>
                                     </div>
