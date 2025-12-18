@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const carFormSchema = z.object({
   name: z.string().min(2, "Car name must be at least 2 characters."),
-  type: z.string().min(2, "Car type must be at least 2 characters."),
+  type: z.string(),
   isAvailable: z.boolean().default(true),
   pricePerDay: z.object({
     usd: z.coerce.number().min(0, "Price must be a positive number."),
@@ -209,7 +209,7 @@ export default function EditCarPage() {
                             <FormItem>
                                 <FormLabel>Features</FormLabel>
                                 <FormControl>
-                                <Textarea placeholder="e.g., 5 Seats&#10;Automatic Transmission&#10;2.5L Engine" {...field} rows={5} />
+                                <Textarea placeholder="e.g., 5 Seats\nAutomatic Transmission\n2.5L Engine" {...field} rows={5} />
                                 </FormControl>
                                 <FormDescription>
                                     List each feature on a new line.

@@ -48,7 +48,7 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 
 const carFormSchema = z.object({
   name: z.string().min(2, "Car name must be at least 2 characters."),
-  type: z.string().min(2, "Car type must be at least 2 characters."),
+  type: z.string(),
   isAvailable: z.boolean().default(true),
   pricePerDay: z.object({
     usd: z.coerce.number().min(0, "Price must be a positive number."),
