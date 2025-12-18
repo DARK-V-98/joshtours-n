@@ -49,7 +49,7 @@ export async function addCar(carData: Omit<Car, "id" | "createdAt" | 'bookedDate
     const carsCollectionRef = collection(db, "cars");
     const carDocument = {
       ...carData,
-      specifications: carData.specifications ? (carData.specifications as unknown as string).split('\n').filter(spec => spec.trim() !== '') : [],
+      specifications: carData.specifications ? String(carData.specifications).split('\n').filter(spec => spec.trim() !== '') : [],
       images: imageUrls,
       dataAiHint: `${carData.type} car`,
       bookedDates: [],
@@ -72,9 +72,14 @@ export async function updateCar(carId: string, carData: Partial<Omit<Car, "id" |
   }
 
   const carDocRef = doc(db, 'cars', carId);
+  const updatedData = { ...carData };
+  if (typeof updatedData.specifications === 'string') {
+    updatedData.specifications = updatedData.specifications.split('\n').filter(spec => spec.trim() !== '');
+  }
+
 
   try {
-    await updateDoc(carDocRef, carData);
+    await updateDoc(carDocRef, updatedData);
     revalidatePath('/admin');
     revalidatePath(`/admin/edit/${carId}`);
     revalidatePath(`/cars/${carId}`);
