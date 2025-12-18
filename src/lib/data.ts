@@ -1,6 +1,6 @@
 
 
-import { collection, getDocs, doc, getDoc, query, orderBy, Timestamp, limit } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, orderBy, Timestamp, limit, where } from "firebase/firestore";
 import { db } from "./firebase";
 
 
@@ -53,27 +53,29 @@ function toCarObject(doc: any): Car {
 }
 
 
-// Fetches all cars from Firestore
+// Fetches all available cars from Firestore for public view
 export async function getAllCars(): Promise<Car[]> {
   if (!db) {
     console.error("Firestore is not initialized.");
     return [];
   }
   const carsCollectionRef = collection(db, "cars");
-  const q = query(carsCollectionRef, orderBy("createdAt", "desc"));
+  // Only fetch cars that are marked as available to show them in the fleet
+  const q = query(carsCollectionRef, where("isAvailable", "==", true), orderBy("createdAt", "desc"));
   const carsSnapshot = await getDocs(q);
   const carsList = carsSnapshot.docs.map(toCarObject);
   return carsList;
 }
 
-// Fetches the 3 most recent cars for the homepage
+// Fetches the 3 most recent available cars for the homepage
 export async function getFeaturedCars(): Promise<Car[]> {
     if (!db) {
         console.error("Firestore is not initialized.");
         return [];
     }
     const carsCollectionRef = collection(db, "cars");
-    const q = query(carsCollectionRef, orderBy("createdAt", "desc"), limit(3));
+    // Only fetch cars that are marked as available
+    const q = query(carsCollectionRef, where("isAvailable", "==", true), orderBy("createdAt", "desc"), limit(3));
     const carsSnapshot = await getDocs(q);
     const carsList = carsSnapshot.docs.map(toCarObject);
     return carsList;
@@ -96,7 +98,7 @@ export async function getCarById(id: string): Promise<Car | null> {
   }
 }
 
-// Fetches cars for the admin panel (less processing needed)
+// Fetches all cars for the admin panel, regardless of availability
 export async function getCarsForAdmin(): Promise<AdminCar[]> {
     if (!db) {
         console.error("Firestore is not initialized.");

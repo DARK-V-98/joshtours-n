@@ -11,7 +11,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableCaption,
 } from "@/components/ui/table";
 import {
   Card,
@@ -22,7 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Loader2, ShieldCheck, ShieldOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Loader2, ShieldCheck, ShieldOff } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,26 +30,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { deleteCar } from "@/lib/carActions";
+import { toggleCarAvailability } from "@/lib/carActions";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function CarList() {
   const [cars, setCars] = useState<AdminCar[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDeleting, startDeleteTransition] = useTransition();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [carToDelete, setCarToDelete] = useState<AdminCar | null>(null);
+  const [isUpdating, startUpdateTransition] = useTransition();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -73,32 +60,26 @@ export function CarList() {
     fetchCars();
   }, [toast]);
 
-  const handleDeleteClick = (car: AdminCar) => {
-    setCarToDelete(car);
-    setShowDeleteDialog(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (!carToDelete) return;
-
-    startDeleteTransition(async () => {
+  const handleToggleAvailability = (carId: string, isAvailable: boolean) => {
+    startUpdateTransition(async () => {
       try {
-        await deleteCar(carToDelete.id);
-        setCars((prevCars) => prevCars.filter((c) => c.id !== carToDelete.id));
+        await toggleCarAvailability(carId, isAvailable);
+        setCars((prevCars) =>
+          prevCars.map((c) =>
+            c.id === carId ? { ...c, isAvailable: !isAvailable } : c
+          )
+        );
         toast({
           title: "Success",
-          description: `Car "${carToDelete.name}" has been deleted.`,
+          description: `Car has been ${isAvailable ? "disabled" : "enabled"}.`,
         });
       } catch (error) {
-        console.error("Failed to delete car:", error);
+        console.error("Failed to toggle availability:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to delete the car. Please try again.",
+          description: "Failed to update the car. Please try again.",
         });
-      } finally {
-        setShowDeleteDialog(false);
-        setCarToDelete(null);
       }
     });
   };
@@ -108,7 +89,7 @@ export function CarList() {
         <Card>
             <CardHeader>
                 <CardTitle>Manage Your Fleet</CardTitle>
-                <CardDescription>View, edit, or delete your vehicles.</CardDescription>
+                <CardDescription>View, edit, or manage your vehicles.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-md">
@@ -143,7 +124,7 @@ export function CarList() {
       <CardHeader>
         <CardTitle>Manage Your Fleet</CardTitle>
         <CardDescription>
-          A list of all the vehicles in your inventory. You can edit or delete them from here.
+          A list of all the vehicles in your inventory. You can edit or disable them from here.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -152,7 +133,7 @@ export function CarList() {
             <TableHeader>
                 <TableRow>
                 <TableHead className="w-[300px]">Name & Type</TableHead>
-                <TableHead>Availability</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Date Added</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -169,12 +150,12 @@ export function CarList() {
                         {car.isAvailable ? (
                         <Badge>
                             <ShieldCheck className="mr-2 h-4 w-4"/>
-                            Available
+                            Enabled
                         </Badge>
                         ) : (
                         <Badge variant="secondary">
                             <ShieldOff className="mr-2 h-4 w-4"/>
-                            Unavailable
+                            Disabled
                         </Badge>
                         )}
                     </TableCell>
@@ -186,7 +167,7 @@ export function CarList() {
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                             <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -199,11 +180,14 @@ export function CarList() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                            className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                            onClick={() => handleDeleteClick(car)}
+                                onClick={() => handleToggleAvailability(car.id, car.isAvailable)}
+                                disabled={isUpdating}
                             >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
+                                {car.isAvailable ? (
+                                    <><ShieldOff className="mr-2 h-4 w-4" /> Disable</>
+                                ) : (
+                                    <><ShieldCheck className="mr-2 h-4 w-4" /> Enable</>
+                                )}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                         </DropdownMenu>
@@ -221,29 +205,6 @@ export function CarList() {
             </Table>
         </div>
       </CardContent>
-
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              car "{carToDelete?.name}" and all of its associated images from the servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isDeleting ? "Deleting..." : "Yes, delete it"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }

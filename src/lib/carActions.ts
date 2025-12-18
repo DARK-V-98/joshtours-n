@@ -116,3 +116,25 @@ export async function deleteCar(carId: string) {
     revalidatePath('/cars');
     revalidatePath('/');
 }
+
+// This function toggles the isAvailable status of a car.
+export async function toggleCarAvailability(carId: string, currentState: boolean) {
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
+
+  const carDocRef = doc(db, 'cars', carId);
+
+  try {
+    await updateDoc(carDocRef, {
+      isAvailable: !currentState
+    });
+    revalidatePath('/admin');
+    revalidatePath('/cars');
+    revalidatePath(`/cars/${carId}`);
+    revalidatePath('/');
+  } catch (error) {
+    console.error("Error updating car availability:", error);
+    throw new Error("Failed to update car availability.");
+  }
+}
