@@ -128,15 +128,12 @@ export default function AdminDashboard() {
         name: values.name,
         type: values.type || '',
         isAvailable: values.isAvailable,
-        images: imageUrls,
-        dataAiHint: `${values.type} car`,
         pricePerDay: values.pricePerDay,
         priceEnabled: values.priceEnabled,
-        specifications: values.specifications ? values.specifications.split('\n').filter(spec => spec.trim() !== '') : [],
-        bookedDates: [],
+        specifications: values.specifications ? values.specifications.split('\\n').filter(spec => spec.trim() !== '') : [],
       };
 
-      await addCar(carData);
+      await addCar(carData, imageUrls);
 
       toast({
         title: "Success!",

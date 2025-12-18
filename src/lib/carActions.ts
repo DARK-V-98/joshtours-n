@@ -36,7 +36,7 @@ export async function uploadImages(formData: FormData): Promise<string[]> {
 }
 
 // This function adds a new car document to the 'cars' collection in Firestore.
-export async function addCar(carData: Omit<Car, "id">) {
+export async function addCar(carData: Omit<Car, "id" | "createdAt" | 'bookedDates' | 'images' | 'dataAiHint'>, imageUrls: string[]) {
   if (!db) {
     console.error("Firestore is not initialized.");
     throw new Error("Database connection is not available.");
@@ -46,6 +46,9 @@ export async function addCar(carData: Omit<Car, "id">) {
     const carsCollectionRef = collection(db, "cars");
     await addDoc(carsCollectionRef, {
       ...carData,
+      images: imageUrls,
+      dataAiHint: `${carData.type} car`,
+      bookedDates: [],
       createdAt: serverTimestamp(),
     });
     revalidatePath('/admin');
