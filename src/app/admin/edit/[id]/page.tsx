@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const carFormSchema = z.object({
   name: z.string().min(2, "Car name must be at least 2 characters."),
-  type: z.string(),
+  type: z.string().optional(),
   isAvailable: z.boolean().default(true),
   pricePerDay: z.object({
     usd: z.coerce.number().min(0, "Price must be a positive number."),
@@ -46,7 +46,7 @@ const carFormSchema = z.object({
     eur: z.coerce.number().min(0, "Price must be a positive number."),
   }),
   priceEnabled: z.boolean().default(true),
-  specifications: z.string().min(1, "Please provide car specifications."),
+  specifications: z.string().optional(),
   bookedDates: z.array(z.string()).default([]),
 });
 
@@ -110,7 +110,7 @@ export default function EditCarPage() {
     try {
       const updatedValues = {
           ...values,
-          specifications: values.specifications.split('\n').filter(spec => spec.trim() !== '')
+          specifications: values.specifications ? values.specifications.split('\n').filter(spec => spec.trim() !== '') : []
       }
       await updateCar(carId, updatedValues);
       toast({
@@ -189,7 +189,7 @@ export default function EditCarPage() {
                     name="type"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Car Type / Description</FormLabel>
+                        <FormLabel>Car Type / Description (Optional)</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Sedan" {...field} />
                         </FormControl>
@@ -207,7 +207,7 @@ export default function EditCarPage() {
                             name="specifications"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Features</FormLabel>
+                                <FormLabel>Features (Optional)</FormLabel>
                                 <FormControl>
                                 <Textarea placeholder="e.g., 5 Seats\nAutomatic Transmission\n2.5L Engine" {...field} rows={5} />
                                 </FormControl>
