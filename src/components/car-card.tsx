@@ -45,7 +45,7 @@ export function CarCard({ car }: CarCardProps) {
                     alt={`${car.name} image ${index + 1}`}
                     fill
                     data-ai-hint={car.dataAiHint}
-                    className="object-cover w-full h-full"
+                    className="object-contain w-full h-full"
                   />
                 </div>
               </CarouselItem>

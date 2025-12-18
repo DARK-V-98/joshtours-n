@@ -373,7 +373,7 @@ export default function BookingForm({ car }: BookingFormProps) {
                         <CardHeader><CardTitle>Your Selected Vehicle</CardTitle></CardHeader>
                         <CardContent>
                         <div className="relative aspect-video w-full overflow-hidden rounded-lg">
-                            <Image src={car.images[0]} alt={car.name} fill className="object-cover"/>
+                            <Image src={car.images[0]} alt={car.name} fill className="object-contain"/>
                         </div>
                         <h2 className="mt-4 text-2xl font-bold">{car.name}</h2>
                         <p className="text-muted-foreground">{car.type}</p>

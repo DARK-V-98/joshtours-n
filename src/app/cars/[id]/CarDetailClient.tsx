@@ -76,7 +76,7 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
                         src={imageSrc}
                         alt={`${car.name} view ${index + 1}`}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         priority={index === 0}
                       />
                     </div>
@@ -109,7 +109,7 @@ export default function CarDetailClient({ car }: CarDetailClientProps) {
                           src={imageSrc}
                           alt={`${car.name} thumbnail ${index + 1}`}
                           fill
-                          className="object-cover"
+                          className="object-contain"
                         />
                       </div>
                     </CarouselItem>
