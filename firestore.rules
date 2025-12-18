@@ -79,3 +79,41 @@ service cloud.firestore {
     }
   }
 }
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // =================================
+    // Helper Functions
+    // =================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      // Firestore access from Storage rules
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // =================================
+    // Car Images
+    // =================================
+    // Allow anyone to read car images.
+    // Allow only admins to write (upload, update, delete) car images.
+    match /cars/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // =================================
+    // Booking Documents
+    // =================================
+    // Allow authenticated users to upload documents to a path corresponding to their new booking.
+    // The path contains the bookingId, which isn't known until after the booking request doc is created.
+    // For simplicity, we allow any signed-in user to write to the 'booking-documents' path.
+    // Admins and the user who created the booking can read the documents.
+    match /booking-documents/{bookingId}/{allPaths=**} {
+      allow read: if isSignedIn() && (firestore.get(/databases/(default)/documents/bookingRequests/$(bookingId)).data.userId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn();
+    }
+  }
+}
