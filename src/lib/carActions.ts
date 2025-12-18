@@ -1,7 +1,7 @@
 
 "use server";
 
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, app } from "@/lib/firebase"; 
 import type { Car } from "./data";
@@ -16,7 +16,7 @@ export async function uploadImages(formData: FormData): Promise<string[]> {
   const images = formData.getAll("images") as File[];
   
   if (!images || images.length === 0) {
-    throw new Error("No images provided for upload.");
+    return [];
   }
 
   const imageUrls: string[] = [];
@@ -66,30 +66,73 @@ export async function addCar(carData: Omit<Car, "id" | "createdAt" | 'bookedDate
 }
 
 // This function updates an existing car document.
-export async function updateCar(carId: string, carData: Partial<Omit<Car, "id" | "images">>) {
+export async function updateCar(carId: string, carData: Partial<Omit<Car, "id">>, imagesToDelete: string[] = [], newImages: File[] = []) {
   if (!db) {
     throw new Error("Database not initialized");
   }
 
   const carDocRef = doc(db, 'cars', carId);
-  const updatedData = { ...carData };
-  if (typeof updatedData.specifications === 'string') {
-    updatedData.specifications = updatedData.specifications.split('\n').filter(spec => spec.trim() !== '');
-  }
-
+  const storage = getStorage(app);
+  let newImageUrls: string[] = [];
 
   try {
+    // 1. Upload new images
+    if (newImages.length > 0) {
+        for (const image of newImages) {
+            if (image.size > 0) {
+                const fileName = `${Date.now()}-${image.name}`;
+                const storageRef = ref(storage, `cars/${fileName}`);
+                await uploadBytes(storageRef, image);
+                const downloadURL = await getDownloadURL(storageRef);
+                newImageUrls.push(downloadURL);
+            }
+        }
+    }
+
+    // 2. Delete specified images from Storage
+    if (imagesToDelete.length > 0) {
+        const deletePromises = imagesToDelete.map(imageUrl => {
+            try {
+                const imageRef = ref(storage, imageUrl);
+                return deleteObject(imageRef);
+            } catch (error) {
+                console.error(`Failed to create storage reference for URL to delete: ${imageUrl}`, error);
+                return Promise.resolve();
+            }
+        });
+        await Promise.all(deletePromises);
+    }
+    
+    // 3. Prepare data for Firestore update
+    const updatedData = { ...carData };
+    if (typeof updatedData.specifications === 'string') {
+        updatedData.specifications = updatedData.specifications.split('\n').filter(spec => spec.trim() !== '');
+    }
+
+    // 4. Update Firestore document
     await updateDoc(carDocRef, updatedData);
+
+    // 5. Update images array separately to add new and remove old
+    if (newImageUrls.length > 0) {
+        await updateDoc(carDocRef, { images: arrayUnion(...newImageUrls) });
+    }
+    if (imagesToDelete.length > 0) {
+        await updateDoc(carDocRef, { images: arrayRemove(...imagesToDelete) });
+    }
+
+
     revalidatePath('/admin');
     revalidatePath(`/admin/edit/${carId}`);
     revalidatePath(`/cars/${carId}`);
     revalidatePath('/cars');
     revalidatePath('/');
+
   } catch (error) {
     console.error("Error updating document:", error);
     throw new Error("Failed to update car in the database.");
   }
 }
+
 
 // This function deletes a car and its associated images from storage
 export async function deleteCar(carId: string) {
