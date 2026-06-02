@@ -1,0 +1,101 @@
+
+# JOSH TOURS - Application Blueprint
+
+This document provides a comprehensive overview of the application's architecture, pages, and core mechanisms.
+
+---
+
+## 1. Technology Stack
+
+*   **Framework:** Next.js (with App Router)
+*   **Language:** TypeScript
+*   **Styling:** Tailwind CSS
+*   **UI Components:** ShadCN/UI
+*   **Backend & Database:** Firebase (Authentication, Firestore, Storage)
+*   **Form Management:** React Hook Form
+*   **Schema Validation:** Zod
+
+---
+
+## 2. Core Mechanisms
+
+### Authentication & User Roles
+*   **Provider:** Firebase Authentication (Email/Password).
+*   **User Data:** User profiles, including roles, are stored in the `users` collection in Firestore.
+*   **Roles:**
+    *   `user`: Default role for all registered customers.
+    *   `admin`: Elevated privileges for managing the application.
+*   **Context:** The `AuthContext` (`src/context/AuthContext.tsx`) provides user state (logged-in status, profile data, role) throughout the application, enabling role-based access control.
+*   **Protection:** Admin-only routes are protected; any non-admin attempting to access them is redirected to the homepage.
+
+### Firestore Data Models
+*   **`cars`:** Stores all vehicle information.
+    *   Fields: `name`, `type`, `images` (array of URLs), `isAvailable`, `pricePerDay` (object with usd, lkr, eur), `priceEnabled`, `specifications` (array of strings), `bookedDates` (array of 'YYYY-MM-DD' strings).
+*   **`bookingRequests`:** Contains all details of a customer's booking inquiry.
+    *   Fields: Customer info, guarantor info, trip details (`pickupDate`, `returnDate`), `status` (`pending`, `confirmed`, `canceled`), and URLs to all uploaded documents in Firebase Storage.
+*   **`rentalAgreements`:** A single document, linked to a booking by its ID, that stores both the editable rental terms and the final billing calculation.
+*   **`testimonials`:** Stores customer feedback.
+    *   Fields: `name`, `rating`, `comment`, and a `status` (`pending` or `approved`).
+*   **`users`:** Manages user profiles.
+    *   Fields: `uid`, `email`, `displayName`, `role`.
+
+### File Uploads (Firebase Storage)
+*   All user-submitted documents (NIC, Passport, Bills, Licenses) are handled by Firebase Storage.
+*   When a user submits the booking form, files are uploaded to a unique path in the storage bucket: `booking-documents/{bookingId}/{fileName}`.
+*   The resulting public download URLs are then saved as string fields in the corresponding `bookingRequests` document in Firestore.
+
+---
+
+## 3. Page Breakdown
+
+### Public Pages
+*   **/ (Homepage)**
+    *   **Purpose:** The main landing page to attract customers.
+    *   **Content:** Features a hero section with a call-to-action, a "Why Choose Us" section highlighting key services, a showcase of featured vehicles fetched from Firestore, and a section of approved customer testimonials.
+*   **/cars**
+    *   **Purpose:** Displays the entire fleet of vehicles.
+    *   **Content:** A grid of `CarCard` components. Includes basic (currently non-functional) filtering and sorting controls.
+*   **/cars/[id]**
+    *   **Purpose:** The detailed view for a single vehicle.
+    *   **Content:** Shows an image carousel of the car's pictures, all its specifications, pricing information (with currency conversion), and an availability calendar that visually disables dates listed in the car's `bookedDates` array.
+*   **/contact**
+    *   **Purpose:** A simple contact form for general inquiries from potential customers.
+
+### Authentication Pages
+*   **/login**
+    *   **Purpose:** Allows existing users to sign in with their email and password using Firebase Authentication.
+    *   **Content:** Includes a form for credentials and a link to the signup page.
+*   **/signup**
+    *   **Purpose:** Allows new users to create an account.
+    *   **Content:** A form for name, email, and password. Upon successful creation, it also creates a corresponding user document in the `users` collection in Firestore with the default role of `user`.
+
+### User-Specific Pages (Require Login)
+*   **/book/[id]**
+    *   **Purpose:** The primary booking inquiry form where users request to rent a specific car.
+    *   **Content:** A multi-part form that collects trip details (dates, mileage), personal information, guarantor information, and all required document uploads. The document requirements change dynamically based on whether the user identifies as a "Sri Lankan" or "Tourist".
+*   **/my-bookings**
+    *   **Purpose:** A personal dashboard for logged-in users.
+    *   **Content:** Lists all of the user's booking requests, showing the car, dates, and current status (`pending`, `confirmed`, `canceled`). Users can cancel pending requests or view the rental agreement for confirmed ones.
+*   **/add-testimonial**
+    *   **Purpose:** Allows authenticated users to provide feedback on their experience.
+    *   **Content:** A simple form to submit a star rating and a text comment. Submissions are saved to the `testimonials` collection with a `pending` status.
+
+### Admin Pages (Require Admin Role)
+*   **/admin**
+    *   **Purpose:** The central control panel for the business owner.
+    *   **Content:** Features quick action buttons to navigate to key management areas (Manage Bookings, Manual Booking). It has a tabbed interface to:
+        1.  **Manage Fleet:** View all cars in a table (`CarList` component).
+        2.  **Add New Car:** A detailed form for adding a new vehicle, including image uploads and specifications.
+        3.  **Manage Testimonials:** View all submitted testimonials, with options to approve or delete them (`TestimonialList` component).
+*   **/admin/bookings**
+    *   **Purpose:** To review and manage all incoming customer booking requests.
+    *   **Content:** Displays a comprehensive list of all `bookingRequests`. Admins can review all customer and guarantor details, click links to view uploaded documents, and either "Confirm" or "Reject" pending requests.
+*   **/admin/edit/[id]**
+    *   **Purpose:** To modify the details of an existing car.
+    *   **Content:** A form pre-filled with the car's current data. Admins can edit specifications, pricing, and availability. It also includes a calendar to manually add or remove dates from the `bookedDates` array.
+*   **/admin/manual-booking**
+    *   **Purpose:** To allow admins to create a booking directly, bypassing the standard user inquiry process (e.g., for phone or walk-in customers).
+    *   **Content:** A simplified form that creates a `bookingRequest` with a status of `confirmed` from the start.
+*   **/agreement/[bookingId]**
+    *   **Purpose:** A unified rental agreement and billing page for both admins and the customer who made the booking.
+    *   **Content:** An extensive form where rental terms (rent cost, duration, deposit) and final billing details (additional charges, damages) can be entered and saved. The page can generate a multi-page, printable PDF of the agreement in both English and Sinhala. Admin users have access to all fields, while regular users have a read-only view.
