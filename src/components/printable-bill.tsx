@@ -87,6 +87,9 @@ const PrintableBill = React.forwardRef<HTMLDivElement, PrintableBillProps>(({ da
                   <div className="space-y-1">
                     <BillField label="Total Amount Due" value={totalAmount} className="font-bold text-base"/>
                     <BillField label="Amount Paid (Advance, etc.)" value={data.paidAmount || 0} />
+                    {Number(data.depositMoney) > 0 && (
+                      <BillField label="Deposit Deducted" value={Number(data.depositMoney)} />
+                    )}
                     <div className="flex justify-between items-center py-2 border-t-2 border-gray-400 mt-2 bg-blue-50 text-blue-800 px-3 rounded-md">
                         <p className="text-base font-extrabold">Balance Due</p>
                         <p className="text-base font-extrabold">Rs {balanceDue.toFixed(2)}</p>

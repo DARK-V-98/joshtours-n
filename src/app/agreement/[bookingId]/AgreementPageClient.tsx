@@ -226,7 +226,8 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
     (Number(watchFields.delayPayments) || 0) +
     (Number(watchFields.otherCharges) || 0);
 
-  const balanceDue = finalTotalAmount - (Number(watchFields.paidAmount) || 0);
+  const depositAmount = Number(watchFields.depositMoney) || 0;
+  const balanceDue = finalTotalAmount - (Number(watchFields.paidAmount) || 0) - depositAmount;
 
   useEffect(() => {
     if (authLoading) return;
@@ -236,7 +237,7 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
       }
       return;
     }
-    if (user.role !== 'admin' && initialBooking.userId !== user.uid) {
+    if (user.role !== 'admin' && user.role !== 'staff' && initialBooking.userId !== user.uid) {
       toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this agreement.' });
       router.push('/my-bookings');
     }
@@ -309,7 +310,7 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
     <div className="container mx-auto px-4 py-12 max-w-4xl">
        <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <Button variant="outline" asChild>
-                <Link href={user?.role === 'admin' ? '/admin/bookings' : '/my-bookings'}>
+                <Link href={(user?.role === 'admin' || user?.role === 'staff') ? '/admin/bookings' : '/my-bookings'}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     {t.backToBookings}
                 </Link>
@@ -343,28 +344,28 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
                         <FormItem className="md:col-span-2"><FormLabel>{t.address}</FormLabel><FormControl><Textarea placeholder={t.addressPlaceholder} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="vehicleDetails" render={({ field }) => (
-                        <FormItem><FormLabel>{t.vehicleDetails}</FormLabel><FormControl><Input disabled={user?.role !== 'admin'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.vehicleDetails}</FormLabel><FormControl><Input disabled={user?.role !== 'admin' && user?.role !== 'staff'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="rentalStartDate" render={({ field }) => (
-                        <FormItem><FormLabel>{t.rentalStartDate}</FormLabel><FormControl><Input type="date" disabled={user?.role !== 'admin'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.rentalStartDate}</FormLabel><FormControl><Input type="date" disabled={user?.role !== 'admin' && user?.role !== 'staff'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="rentalDuration" render={({ field }) => (
-                        <FormItem><FormLabel>{t.rentalDuration}</FormLabel><FormControl><Input placeholder={t.rentalDurationPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin'} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.rentalDuration}</FormLabel><FormControl><Input placeholder={t.rentalDurationPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin' && user?.role !== 'staff'} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="rentCostPerDayMonth" render={({ field }) => (
-                        <FormItem><FormLabel>{t.rentCost}</FormLabel><FormControl><Input placeholder={t.rentCostPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin'} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.rentCost}</FormLabel><FormControl><Input placeholder={t.rentCostPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin' && user?.role !== 'staff'} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="totalRentCost" render={({ field }) => (
-                        <FormItem><FormLabel>{t.totalRentCost}</FormLabel><FormControl><Input placeholder={t.totalRentCostPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin'} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.totalRentCost}</FormLabel><FormControl><Input placeholder={t.totalRentCostPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin' && user?.role !== 'staff'} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="depositMoney" render={({ field }) => (
-                        <FormItem><FormLabel>{t.depositMoney}</FormLabel><FormControl><Input placeholder={t.depositMoneyPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin'} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.depositMoney}</FormLabel><FormControl><Input placeholder={t.depositMoneyPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin' && user?.role !== 'staff'} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="dailyKMLimit" render={({ field }) => (
-                        <FormItem><FormLabel>{t.dailyKmLimit}</FormLabel><FormControl><Input placeholder={t.dailyKmLimitPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin'} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.dailyKmLimit}</FormLabel><FormControl><Input placeholder={t.dailyKmLimitPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin' && user?.role !== 'staff'} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="priceForAdditionalKM" render={({ field }) => (
-                        <FormItem><FormLabel>{t.priceForAdditionalKm}</FormLabel><FormControl><Input placeholder={t.priceForAdditionalKmPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin'} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>{t.priceForAdditionalKm}</FormLabel><FormControl><Input placeholder={t.priceForAdditionalKmPlaceholder} {...field} value={field.value ?? ''} disabled={user?.role !== 'admin' && user?.role !== 'staff'} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </CardContent>
             </Card>
@@ -378,7 +379,7 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
                         <FormItem><FormLabel>{t.clientFullName}</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="clientContactNumber" render={({ field }) => (
-                        <FormItem><FormLabel>{t.clientContact}</FormLabel><FormControl><Input disabled={user?.role !== 'admin'} {...field} value={field.value ?? ''} /></FormControl></FormItem>
+                        <FormItem><FormLabel>{t.clientContact}</FormLabel><FormControl><Input disabled={user?.role !== 'admin' && user?.role !== 'staff'} {...field} value={field.value ?? ''} /></FormControl></FormItem>
                     )} />
                     <FormField control={form.control} name="clientSignDate" render={({ field }) => (
                         <FormItem><FormLabel>{t.dateOfSigning}</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl></FormItem>
@@ -406,7 +407,7 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
                 </CardContent>
             </Card>
 
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'staff') && (
               <Card>
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-2xl"><FilePlus className="h-6 w-6"/>Cost & Billing Details</CardTitle>
@@ -452,9 +453,17 @@ export default function AgreementPageClient({ bookingId, initialBooking, initial
                           <FormField control={form.control} name="paidAmount" render={({ field }) => (
                               <FormItem><FormLabel>Paid Amount (Advance, etc.)</FormLabel><FormControl><Input type="number" className="h-12 text-lg" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
-                          <div className="flex justify-between items-center font-bold text-2xl text-primary p-2 rounded-md bg-primary/10">
-                              <span>Balance Due</span>
-                              <span>Rs {balanceDue.toFixed(2)}</span>
+                          <div className="space-y-1">
+                              {depositAmount > 0 && (
+                                <div className="flex justify-between items-center text-sm text-muted-foreground px-2">
+                                  <span>Deposit Deducted</span>
+                                  <span>- Rs {depositAmount.toFixed(2)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center font-bold text-2xl text-primary p-2 rounded-md bg-primary/10">
+                                  <span>Balance Due</span>
+                                  <span>Rs {balanceDue.toFixed(2)}</span>
+                              </div>
                           </div>
                       </div>
                   </CardContent>

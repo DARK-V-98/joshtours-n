@@ -12,7 +12,7 @@ interface UserProfile {
   email: string | null;
   displayName: string | null;
   phone: string | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'staff';
 }
 
 interface AuthContextType {
@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         // User is signed in, fetch only their role from Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        let userRole: 'user' | 'admin' = 'user'; // Default role
+        let userRole: 'user' | 'admin' | 'staff' = 'user'; // Default role
         try {
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {

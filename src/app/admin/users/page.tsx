@@ -33,7 +33,7 @@ export default function AdminUsersPage() {
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     user: UserRecord | null;
-    newRole: "admin" | "user";
+    newRole: "admin" | "staff" | "user";
   }>({ open: false, user: null, newRole: "user" });
   const [isPending, startTransition] = useTransition();
 
@@ -59,9 +59,10 @@ export default function AdminUsersPage() {
   });
 
   const adminCount = users.filter((u) => u.role === "admin").length;
+  const staffCount = users.filter((u) => u.role === "staff").length;
   const userCount = users.filter((u) => u.role === "user").length;
 
-  const openConfirm = (target: UserRecord, newRole: "admin" | "user") => {
+  const openConfirm = (target: UserRecord, newRole: "admin" | "staff" | "user") => {
     setConfirmDialog({ open: true, user: target, newRole });
   };
 
@@ -114,7 +115,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-5 flex items-center justify-between">
             <div>
@@ -134,6 +135,17 @@ export default function AdminUsersPage() {
             </div>
             <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Staff</p>
+              <p className="text-3xl font-bold">{staffCount}</p>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-orange-500/10 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-orange-500" />
             </div>
           </CardContent>
         </Card>
@@ -215,8 +227,8 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={u.role === "admin" ? "default" : "secondary"}
-                            className="capitalize"
+                            variant={u.role === "admin" ? "default" : u.role === "staff" ? "outline" : "secondary"}
+                            className={`capitalize ${u.role === "staff" ? "border-orange-400 text-orange-600" : ""}`}
                           >
                             {isUpdating && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                             {u.role}
@@ -225,26 +237,43 @@ export default function AdminUsersPage() {
                         <TableCell className="text-right">
                           {isSelf ? (
                             <span className="text-xs text-muted-foreground">—</span>
-                          ) : u.role === "admin" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isUpdating}
-                              onClick={() => openConfirm(u, "user")}
-                            >
-                              <ShieldOff className="mr-1.5 h-4 w-4" />
-                              Remove Admin
-                            </Button>
                           ) : (
-                            <Button
-                              size="sm"
-                              disabled={isUpdating}
-                              onClick={() => openConfirm(u, "admin")}
-                              className="bg-primary hover:bg-primary/90"
-                            >
-                              <ShieldCheck className="mr-1.5 h-4 w-4" />
-                              Make Admin
-                            </Button>
+                            <div className="flex gap-2 justify-end flex-wrap">
+                              {u.role !== "admin" && (
+                                <Button
+                                  size="sm"
+                                  disabled={isUpdating}
+                                  onClick={() => openConfirm(u, "admin")}
+                                  className="bg-primary hover:bg-primary/90"
+                                >
+                                  <ShieldCheck className="mr-1.5 h-4 w-4" />
+                                  Make Admin
+                                </Button>
+                              )}
+                              {u.role !== "staff" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={isUpdating}
+                                  onClick={() => openConfirm(u, "staff")}
+                                  className="border-orange-400 text-orange-600 hover:bg-orange-50"
+                                >
+                                  <ShieldCheck className="mr-1.5 h-4 w-4" />
+                                  Make Staff
+                                </Button>
+                              )}
+                              {u.role !== "user" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isUpdating}
+                                  onClick={() => openConfirm(u, "user")}
+                                >
+                                  <ShieldOff className="mr-1.5 h-4 w-4" />
+                                  Make User
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -271,21 +300,23 @@ export default function AdminUsersPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmDialog.newRole === "admin" ? "Grant Admin Access?" : "Revoke Admin Access?"}
+              {confirmDialog.newRole === "admin" ? "Grant Admin Access?" : confirmDialog.newRole === "staff" ? "Grant Staff Access?" : "Remove Elevated Access?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmDialog.newRole === "admin"
                 ? `This will give ${confirmDialog.user?.displayName || confirmDialog.user?.email} full admin access to the dashboard, fleet, and all bookings.`
-                : `This will remove admin access from ${confirmDialog.user?.displayName || confirmDialog.user?.email}. They will only have regular user access.`}
+                : confirmDialog.newRole === "staff"
+                ? `This will give ${confirmDialog.user?.displayName || confirmDialog.user?.email} staff access — they can view and edit bookings/agreements but cannot confirm or cancel bookings.`
+                : `This will remove elevated access from ${confirmDialog.user?.displayName || confirmDialog.user?.email}. They will only have regular user access.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRoleChange}
-              className={confirmDialog.newRole === "admin" ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+              className={confirmDialog.newRole === "user" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
-              {confirmDialog.newRole === "admin" ? "Yes, make Admin" : "Yes, remove Admin"}
+              {confirmDialog.newRole === "admin" ? "Yes, make Admin" : confirmDialog.newRole === "staff" ? "Yes, make Staff" : "Yes, make User"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

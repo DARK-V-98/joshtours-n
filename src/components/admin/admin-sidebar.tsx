@@ -12,9 +12,11 @@ import {
   ChevronLeft,
   Menu,
   Users,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 interface NavItem {
   href: string;
@@ -33,14 +35,19 @@ export function AdminSidebar({ pendingBookings = 0, pendingTestimonials = 0 }: A
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
-  const navItems: NavItem[] = [
-    { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, badge: pendingTestimonials },
+  const allNavItems: (NavItem & { adminOnly?: boolean })[] = [
+    { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, badge: pendingTestimonials, adminOnly: true },
     { href: "/admin/bookings", label: "Bookings", icon: Notebook, badge: pendingBookings },
-    { href: "/admin/billing", label: "Billing", icon: CreditCard },
-    { href: "/admin/manual-booking", label: "Manual Booking", icon: FilePlus },
-    { href: "/admin/users", label: "Users", icon: Users },
+    { href: "/admin/billing", label: "Billing", icon: CreditCard, adminOnly: true },
+    { href: "/admin/manual-booking", label: "Manual Booking", icon: FilePlus, adminOnly: true },
+    { href: "/admin/attractions", label: "Attractions", icon: MapPin, adminOnly: true },
+    { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
   ];
+
+  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);

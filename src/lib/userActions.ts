@@ -13,7 +13,7 @@ export interface UserRecord {
   email: string | null;
   displayName: string | null;
   phone: string | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'staff';
   createdAt: string | null;
 }
 
@@ -42,7 +42,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
   }
 }
 
-export async function setUserRole(uid: string, role: 'user' | 'admin') {
+export async function setUserRole(uid: string, role: 'user' | 'admin' | 'staff') {
   if (!db) throw new Error('Database not initialized');
   await updateDoc(doc(db, 'users', uid), { role });
   revalidatePath('/admin/users');

@@ -59,7 +59,7 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || user.role !== "admin") router.push("/");
+    if (!user || (user.role !== "admin" && user.role !== "staff")) router.push("/");
   }, [user, authLoading, router]);
 
   useEffect(() => {
@@ -188,7 +188,7 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
       </div>
 
       {/* Bulk actions bar */}
-      {selectedIds.size > 0 && (
+      {selectedIds.size > 0 && user?.role === "admin" && (
         <div className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-secondary border border-border">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleBulkUpdate("confirmed")}>
@@ -319,59 +319,61 @@ export default function BookingListClient({ bookings: initialBookings }: Booking
                         View Agreement
                       </a>
                     </Button>
-                    <div className="flex gap-2">
-                      {booking.status === "pending" && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleStatusUpdate(booking.id, "confirmed")}
-                            disabled={isUpdating}
-                          >
-                            {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                            Confirm
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleStatusUpdate(booking.id, "canceled")}
-                            disabled={isUpdating}
-                          >
-                            <X className="mr-2 h-4 w-4" /> Reject
-                          </Button>
-                        </>
-                      )}
-                      {booking.status === "confirmed" && (
-                        <>
+                    {user?.role === "admin" && (
+                      <div className="flex gap-2">
+                        {booking.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleStatusUpdate(booking.id, "confirmed")}
+                              disabled={isUpdating}
+                            >
+                              {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                              Confirm
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleStatusUpdate(booking.id, "canceled")}
+                              disabled={isUpdating}
+                            >
+                              <X className="mr-2 h-4 w-4" /> Reject
+                            </Button>
+                          </>
+                        )}
+                        {booking.status === "confirmed" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleStatusUpdate(booking.id, "pending")}
+                              disabled={isUpdating}
+                            >
+                              <RefreshCw className="mr-2 h-4 w-4" /> Mark Pending
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleStatusUpdate(booking.id, "canceled")}
+                              disabled={isUpdating}
+                            >
+                              <X className="mr-2 h-4 w-4" /> Cancel
+                            </Button>
+                          </>
+                        )}
+                        {booking.status === "canceled" && (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleStatusUpdate(booking.id, "pending")}
                             disabled={isUpdating}
                           >
-                            <RefreshCw className="mr-2 h-4 w-4" /> Mark Pending
+                            <RefreshCw className="mr-2 h-4 w-4" /> Restore to Pending
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleStatusUpdate(booking.id, "canceled")}
-                            disabled={isUpdating}
-                          >
-                            <X className="mr-2 h-4 w-4" /> Cancel
-                          </Button>
-                        </>
-                      )}
-                      {booking.status === "canceled" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleStatusUpdate(booking.id, "pending")}
-                          disabled={isUpdating}
-                        >
-                          <RefreshCw className="mr-2 h-4 w-4" /> Restore to Pending
-                        </Button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
