@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   getAttractions, addAttraction, updateAttraction,
-  deleteAttraction, uploadAttractionImage, Attraction,
+  deleteAttraction, uploadAttractionImage, uploadAttractionImages, Attraction,
 } from "@/lib/attractionActions";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  MapPin, Plus, Pencil, Trash2, Upload, Loader2, Eye, EyeOff, Image as ImageIcon,
+  MapPin, Plus, Pencil, Trash2, Upload, Loader2, Eye, EyeOff, Image as ImageIcon, X, Images,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
@@ -47,7 +47,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const emptyForm = {
   name: "", description: "", location: "", category: "Cultural",
-  imageUrl: "", order: 0, published: true,
+  imageUrl: "", gallery: [] as string[], order: 0, published: true,
 };
 
 export default function AdminAttractionsPage() {
@@ -63,8 +63,12 @@ export default function AdminAttractionsPage() {
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  // Gallery: existing kept URLs live in form.gallery; new files staged here.
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -72,19 +76,26 @@ export default function AdminAttractionsPage() {
     getAttractions().then((data) => { setAttractions(data); setLoading(false); });
   }, [user, authLoading, router]);
 
+  const resetGallery = () => {
+    setGalleryFiles([]);
+    setGalleryPreviews([]);
+  };
+
   const openAdd = () => {
     setEditTarget(null);
-    setForm({ ...emptyForm, order: attractions.length });
+    setForm({ ...emptyForm, gallery: [], order: attractions.length });
     setImageFile(null);
     setImagePreview("");
+    resetGallery();
     setDialogOpen(true);
   };
 
   const openEdit = (a: Attraction) => {
     setEditTarget(a);
-    setForm({ name: a.name, description: a.description, location: a.location, category: a.category, imageUrl: a.imageUrl, order: a.order, published: a.published });
+    setForm({ name: a.name, description: a.description, location: a.location, category: a.category, imageUrl: a.imageUrl, gallery: a.gallery ?? [], order: a.order, published: a.published });
     setImageFile(null);
     setImagePreview(a.imageUrl);
+    resetGallery();
     setDialogOpen(true);
   };
 
@@ -93,6 +104,23 @@ export default function AdminAttractionsPage() {
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setGalleryFiles((prev) => [...prev, ...files]);
+    setGalleryPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    e.target.value = ""; // allow re-selecting same file
+  };
+
+  const removeExistingGalleryImage = (url: string) => {
+    setForm((f) => ({ ...f, gallery: f.gallery.filter((g) => g !== url) }));
+  };
+
+  const removeNewGalleryImage = (index: number) => {
+    setGalleryFiles((prev) => prev.filter((_, i) => i !== index));
+    setGalleryPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -108,7 +136,20 @@ export default function AdminAttractionsPage() {
         fd.append("image", imageFile);
         imageUrl = await uploadAttractionImage(fd);
       }
-      const payload = { ...form, imageUrl, order: Number(form.order) };
+
+      // Upload any newly added gallery images, then merge with kept existing ones
+      let gallery = [...form.gallery];
+      if (galleryFiles.length > 0) {
+        const fd = new FormData();
+        galleryFiles.forEach((file) => fd.append("images", file));
+        const newUrls = await uploadAttractionImages(fd);
+        gallery = [...gallery, ...newUrls];
+      }
+
+      // If no main image set but gallery has images, use the first as cover
+      if (!imageUrl && gallery.length > 0) imageUrl = gallery[0];
+
+      const payload = { ...form, imageUrl, gallery, order: Number(form.order) };
       if (editTarget) {
         await updateAttraction(editTarget.id, payload);
         setAttractions((prev) => prev.map((a) => a.id === editTarget.id ? { ...a, ...payload } : a));
@@ -130,7 +171,7 @@ export default function AdminAttractionsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deleteAttraction(deleteTarget.id, deleteTarget.imageUrl);
+      await deleteAttraction(deleteTarget.id, deleteTarget.imageUrl, deleteTarget.gallery ?? []);
       setAttractions((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       toast({ title: "Deleted", description: `${deleteTarget.name} has been removed.` });
     } catch {
@@ -212,6 +253,14 @@ export default function AdminAttractionsPage() {
                     {a.published ? "Live" : "Hidden"}
                   </Badge>
                 </div>
+                {a.gallery && a.gallery.length > 0 && (
+                  <div className="absolute bottom-3 right-3">
+                    <span className="flex items-center gap-1 text-xs font-medium bg-black/60 text-white px-2 py-1 rounded-full backdrop-blur-sm">
+                      <Images className="h-3 w-3" />
+                      {a.gallery.length + 1}
+                    </span>
+                  </div>
+                )}
               </div>
               <CardContent className="p-4 space-y-3">
                 <div>
@@ -248,9 +297,9 @@ export default function AdminAttractionsPage() {
             <DialogTitle>{editTarget ? "Edit Attraction" : "Add New Attraction"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* Image upload */}
+            {/* Main image upload */}
             <div className="space-y-2">
-              <Label>Photo</Label>
+              <Label>Main Photo (Cover)</Label>
               <div
                 className="relative w-full h-48 bg-secondary rounded-xl overflow-hidden border-2 border-dashed border-border cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={() => fileRef.current?.click()}
@@ -260,7 +309,7 @@ export default function AdminAttractionsPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
                     <Upload className="h-8 w-8" />
-                    <span className="text-sm">Click to upload photo</span>
+                    <span className="text-sm">Click to upload cover photo</span>
                   </div>
                 )}
                 {imagePreview && (
@@ -270,6 +319,54 @@ export default function AdminAttractionsPage() {
                 )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+            </div>
+
+            {/* Gallery (sub-images) upload */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Images className="h-4 w-4" />
+                Gallery (more photos)
+              </Label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {/* Existing kept images */}
+                {form.gallery.map((url) => (
+                  <div key={url} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
+                    <img src={url} alt="gallery" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingGalleryImage(url)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {/* Newly added (not yet uploaded) */}
+                {galleryPreviews.map((url, i) => (
+                  <div key={`new-${i}`} className="relative group aspect-square rounded-lg overflow-hidden border-2 border-primary/40">
+                    <img src={url} alt="new" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-1 left-1 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">New</span>
+                    <button
+                      type="button"
+                      onClick={() => removeNewGalleryImage(i)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {/* Add tile */}
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span className="text-[10px]">Add</span>
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">Add several photos so visitors can see more of this place.</p>
+              <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryChange} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
