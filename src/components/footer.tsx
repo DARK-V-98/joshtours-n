@@ -2,6 +2,7 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { Button } from "./ui/button";
+import { WhatsAppButton, WHATSAPP_NUMBER, WhatsAppIcon } from "@/components/whatsapp-button";
 
 export function Footer() {
   return (
@@ -84,7 +85,23 @@ export function Footer() {
                   joshtoursbe@gmail.com
                 </a>
               </li>
+              <li className="flex items-center gap-3">
+                <WhatsAppIcon className="w-5 h-5 text-[#25D366] flex-shrink-0" />
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Josh Tours! I'd like to know more about renting a vehicle.")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                >
+                  Chat on WhatsApp
+                </a>
+              </li>
             </ul>
+            <WhatsAppButton
+              size="default"
+              className="mt-6 w-full"
+              message="Hi Josh Tours! I'd like to know more about renting a vehicle."
+            />
           </div>
         </div>
 
