@@ -1,13 +1,12 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Star, ExternalLink, Quote, RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Star, ExternalLink, Quote, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getReviewsWithAutoRefresh, GoogleReview, ReviewsMeta } from '@/lib/googleReviewsActions';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
+// ─── Google G SVG ──────────────────────────────────────────────────────────────
 const GoogleG = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="none">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -17,51 +16,205 @@ const GoogleG = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
+// ─── Star row ──────────────────────────────────────────────────────────────────
 function Stars({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'lg' }) {
-  const cls = size === 'lg' ? 'w-6 h-6' : 'w-4 h-4';
+  const cls = size === 'lg' ? 'w-7 h-7' : 'w-4 h-4';
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
-        <Star key={s} className={`${cls} ${s <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'}`} />
+        <Star key={s} className={`${cls} ${s <= rating ? 'fill-yellow-400 text-yellow-400' : 'fill-muted text-muted'}`} />
       ))}
     </div>
   );
 }
 
+// ─── Single card ──────────────────────────────────────────────────────────────
 function ReviewCard({ review }: { review: GoogleReview }) {
   const [expanded, setExpanded] = useState(false);
-  const long = review.text.length > 220;
-  const displayed = long && !expanded ? review.text.slice(0, 220) + '…' : review.text;
+  const long = review.text.length > 200;
+  const displayed = long && !expanded ? review.text.slice(0, 200) + '…' : review.text;
 
   return (
-    <div className="group flex flex-col gap-4 p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 h-full">
-      <Quote className="w-7 h-7 text-primary/30 flex-shrink-0" />
-      <p className="text-sm text-foreground/90 leading-relaxed flex-1">
+    <div className="flex flex-col gap-4 p-6 rounded-2xl bg-card border border-border h-full select-none">
+      {/* Stars at top */}
+      <Stars rating={review.rating} />
+
+      {/* Review text */}
+      <p className="text-sm text-foreground/80 leading-relaxed flex-1">
+        <Quote className="w-4 h-4 text-primary/40 inline-block mr-1 -mt-1" />
         {displayed}
         {long && (
-          <button onClick={() => setExpanded(!expanded)} className="ml-1 text-primary text-xs font-medium hover:underline">
-            {expanded ? 'Show less' : 'Read more'}
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            className="ml-1 text-primary text-xs font-medium hover:underline"
+          >
+            {expanded ? 'less' : 'more'}
           </button>
         )}
       </p>
-      <Stars rating={review.rating} />
-      <div className="flex items-center gap-3 pt-2 border-t border-border">
+
+      {/* Author row */}
+      <div className="flex items-center gap-3 pt-3 border-t border-border mt-auto">
         {review.profilePhotoUrl ? (
-          <img src={review.profilePhotoUrl} alt={review.authorName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
+          <img
+            src={review.profilePhotoUrl}
+            alt={review.authorName}
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-border"
+            referrerPolicy="no-referrer"
+          />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm flex-shrink-0">
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
             {review.authorName.charAt(0).toUpperCase()}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <a href={review.authorUrl} target="_blank" rel="noopener noreferrer"
-            className="font-semibold text-sm text-foreground hover:text-primary transition-colors truncate flex items-center gap-1">
+          <a
+            href={review.authorUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-semibold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1 truncate"
+          >
             {review.authorName}
-            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+            <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-50" />
           </a>
           <p className="text-xs text-muted-foreground">{review.relativeTimeDescription}</p>
         </div>
-        <GoogleG className="w-5 h-5 flex-shrink-0 opacity-50" />
+        <GoogleG className="w-5 h-5 flex-shrink-0 opacity-40" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Carousel ─────────────────────────────────────────────────────────────────
+function Carousel({ reviews, googleMapsUrl }: { reviews: GoogleReview[]; googleMapsUrl: string }) {
+  const [current, setCurrent] = useState(0);
+  const [perPage, setPerPage] = useState(1);
+  const [paused, setPaused] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Responsive cards-per-view
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth >= 1024) setPerPage(3);
+      else if (window.innerWidth >= 640) setPerPage(2);
+      else setPerPage(1);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const maxIndex = Math.max(0, reviews.length - perPage);
+
+  const next = useCallback(() => setCurrent((c) => (c >= maxIndex ? 0 : c + 1)), [maxIndex]);
+  const prev = useCallback(() => setCurrent((c) => (c <= 0 ? maxIndex : c - 1)), [maxIndex]);
+
+  // Auto-advance
+  useEffect(() => {
+    if (paused || reviews.length <= perPage) return;
+    intervalRef.current = setInterval(next, 4500);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [paused, next, reviews.length, perPage]);
+
+  // Touch / drag support
+  const onDragStart = (clientX: number) => { dragStart.current = clientX; setDragging(true); setPaused(true); };
+  const onDragEnd = (clientX: number) => {
+    const diff = dragStart.current - clientX;
+    if (diff > 50) next();
+    else if (diff < -50) prev();
+    setDragging(false);
+    setPaused(false);
+  };
+
+  // translateX: each card occupies (100 / perPage)% of the track
+  const translateX = current * (100 / perPage);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Track wrapper */}
+      <div
+        className="overflow-hidden rounded-2xl"
+        onMouseDown={(e) => onDragStart(e.clientX)}
+        onMouseUp={(e) => onDragEnd(e.clientX)}
+        onTouchStart={(e) => onDragStart(e.touches[0].clientX)}
+        onTouchEnd={(e) => onDragEnd(e.changedTouches[0].clientX)}
+      >
+        <div
+          className="flex transition-transform duration-500 ease-in-out"
+          style={{
+            transform: `translateX(-${translateX}%)`,
+            cursor: dragging ? 'grabbing' : 'grab',
+          }}
+        >
+          {reviews.map((r) => (
+            <div
+              key={r.id}
+              className="flex-shrink-0 px-3"
+              style={{ width: `${100 / perPage}%` }}
+            >
+              <ReviewCard review={r} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Prev / Next arrows */}
+      {reviews.length > perPage && (
+        <>
+          <button
+            onClick={prev}
+            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-card border border-border shadow-md flex items-center justify-center hover:border-primary/50 hover:text-primary transition-all"
+            aria-label="Previous review"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={next}
+            className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-card border border-border shadow-md flex items-center justify-center hover:border-primary/50 hover:text-primary transition-all"
+            aria-label="Next review"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </>
+      )}
+
+      {/* Dots */}
+      {reviews.length > perPage && (
+        <div className="flex justify-center gap-2 mt-6">
+          {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrent(i)}
+              className={`rounded-full transition-all duration-300 ${
+                i === current
+                  ? 'w-6 h-2.5 bg-primary'
+                  : 'w-2.5 h-2.5 bg-border hover:bg-primary/40'
+              }`}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* View all on Google */}
+      <div className="flex justify-center mt-8">
+        <a
+          href={googleMapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all text-sm font-medium text-foreground hover:text-primary"
+        >
+          <GoogleG className="w-4 h-4" />
+          See all reviews on Google
+          <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+        </a>
       </div>
     </div>
   );
@@ -72,16 +225,11 @@ export default function GoogleReviews() {
   const [reviews, setReviews] = useState<GoogleReview[]>([]);
   const [meta, setMeta] = useState<ReviewsMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [wasRefreshed, setWasRefreshed] = useState(false);
 
   useEffect(() => {
-    // On mount: server action checks if cache is stale (>24 h).
-    // If stale → fetches fresh from Google, saves to Firestore, returns new data.
-    // If fresh → returns cached data instantly. Either way: max 1 Google API call/day.
-    getReviewsWithAutoRefresh().then(({ reviews, meta, wasRefreshed }) => {
+    getReviewsWithAutoRefresh().then(({ reviews, meta }) => {
       setReviews(reviews);
       setMeta(meta);
-      setWasRefreshed(wasRefreshed);
       setLoading(false);
     });
   }, []);
@@ -90,53 +238,58 @@ export default function GoogleReviews() {
 
   return (
     <section className="py-24 bg-secondary/30 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium border border-primary/20">
+        <div className="text-center max-w-2xl mx-auto mb-14 space-y-5">
+          {/* Badge — links to Google Business */}
+          <a
+            href={meta?.googleMapsUrl ?? 'https://www.google.com/maps'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/40 hover:shadow-sm transition-all text-sm font-medium text-foreground"
+          >
             <GoogleG />
             Google Reviews
-            {wasRefreshed && (
-              <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
-                <RefreshCw className="w-3 h-3" /> Updated
-              </span>
-            )}
-          </span>
+            <ExternalLink className="w-3 h-3 opacity-50" />
+          </a>
 
           <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground">
             What Customers <span className="text-gradient-gold">Say on Google</span>
           </h2>
 
-          {/* Overall rating */}
+          {/* Overall rating summary */}
           {!loading && meta && meta.placeRating > 0 && (
-            <div className="flex flex-col items-center gap-2 pt-2">
-              <div className="flex items-center gap-3">
-                <span className="text-5xl font-display font-bold text-foreground">
-                  {meta.placeRating.toFixed(1)}
-                </span>
-                <div className="flex flex-col items-start gap-1">
-                  <Stars rating={Math.round(meta.placeRating)} size="lg" />
-                  <p className="text-sm text-muted-foreground">
-                    {meta.totalRatings.toLocaleString()} reviews on Google
-                  </p>
-                </div>
+            <a
+              href={meta.googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-4 px-6 py-3 rounded-2xl bg-card border border-border hover:border-primary/40 hover:shadow-md transition-all group"
+            >
+              <span className="text-4xl font-display font-bold text-foreground group-hover:text-primary transition-colors">
+                {meta.placeRating.toFixed(1)}
+              </span>
+              <div className="flex flex-col items-start gap-1">
+                <Stars rating={Math.round(meta.placeRating)} size="lg" />
+                <p className="text-xs text-muted-foreground">
+                  Based on {meta.totalRatings.toLocaleString()} Google reviews
+                </p>
               </div>
-            </div>
+            </a>
           )}
         </div>
 
-        {/* Cards */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {reviews.map((r) => <ReviewCard key={r.id} review={r} />)}
-          </div>
-        )}
+        {/* Carousel */}
+        <div className="px-6">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-60 rounded-2xl" />)}
+            </div>
+          ) : (
+            <Carousel reviews={reviews} googleMapsUrl={meta?.googleMapsUrl ?? 'https://www.google.com/maps'} />
+          )}
+        </div>
       </div>
     </section>
   );

@@ -25,6 +25,7 @@ export interface ReviewsMeta {
   placeRating: number;
   totalRatings: number;
   reviewCount: number;
+  googleMapsUrl: string;   // link to business on Google Maps
 }
 
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -32,7 +33,7 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 function emptyResult(): { reviews: GoogleReview[]; meta: ReviewsMeta; wasRefreshed: boolean } {
   return {
     reviews: [],
-    meta: { lastFetched: null, placeRating: 0, totalRatings: 0, reviewCount: 0 },
+    meta: { lastFetched: null, placeRating: 0, totalRatings: 0, reviewCount: 0, googleMapsUrl: 'https://www.google.com/maps' },
     wasRefreshed: false,
   };
 }
@@ -140,6 +141,7 @@ async function readCache(): Promise<{ reviews: GoogleReview[]; meta: ReviewsMeta
   }));
 
   const metaData = metaSnap.data();
+  const placeId = process.env.GOOGLE_PLACE_ID ?? '';
   const meta: ReviewsMeta = {
     lastFetched:
       metaData?.lastFetched instanceof Timestamp
@@ -148,6 +150,9 @@ async function readCache(): Promise<{ reviews: GoogleReview[]; meta: ReviewsMeta
     placeRating: metaData?.placeRating ?? 0,
     totalRatings: metaData?.totalRatings ?? 0,
     reviewCount: reviews.length,
+    googleMapsUrl: placeId
+      ? `https://www.google.com/maps/place/?q=place_id:${placeId}`
+      : 'https://www.google.com/maps',
   };
 
   return { reviews, meta };
@@ -196,6 +201,7 @@ export async function getReviewsWithAutoRefresh(): Promise<{
           fresh.placeRating,
           fresh.totalRatings,
         );
+        const placeId = process.env.GOOGLE_PLACE_ID ?? '';
         return {
           reviews,
           meta: {
@@ -203,6 +209,9 @@ export async function getReviewsWithAutoRefresh(): Promise<{
             placeRating: fresh.placeRating,
             totalRatings: fresh.totalRatings,
             reviewCount: reviews.length,
+            googleMapsUrl: placeId
+              ? `https://www.google.com/maps/place/?q=place_id:${placeId}`
+              : 'https://www.google.com/maps',
           },
           wasRefreshed: true,
         };
