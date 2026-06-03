@@ -4,16 +4,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { getCachedReviews, GoogleReview, ReviewsMeta } from "@/lib/googleReviewsActions";
+import { getCachedReviews, forceRefreshReviews, GoogleReview, ReviewsMeta } from "@/lib/googleReviewsActions";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Star, RefreshCw, Loader2, Clock, Globe, Quote,
-} from "lucide-react";
-import { format, parseISO, formatDistanceToNow } from "date-fns";
+import { Star, RefreshCw, Loader2, Clock, Globe, Quote, Info } from "lucide-react";
+import { formatDistanceToNow, parseISO } from "date-fns";
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -38,10 +36,10 @@ export default function AdminGoogleReviewsPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.role !== "admin") { router.push("/"); return; }
-    fetchCached();
+    loadCached();
   }, [user, authLoading, router]);
 
-  const fetchCached = async () => {
+  const loadCached = async () => {
     const data = await getCachedReviews();
     setReviews(data.reviews);
     setMeta(data.meta);
@@ -51,20 +49,18 @@ export default function AdminGoogleReviewsPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const cronSecret = process.env.NEXT_PUBLIC_CRON_SECRET_HINT;
-      // Call the API route — key passed as query param (admin manual trigger)
-      const res = await fetch(`/api/refresh-reviews?key=${encodeURIComponent(cronSecret ?? "")}`, {
-        method: "GET",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ variant: "destructive", title: "Refresh Failed", description: data.error ?? "Unknown error." });
+      const result = await forceRefreshReviews();
+      if (!result.success) {
+        toast({ variant: "destructive", title: "Refresh Failed", description: result.error ?? "Unknown error." });
       } else {
-        toast({ title: "Reviews Refreshed!", description: `Fetched ${data.reviewsFetched} reviews from Google. Rating: ${data.placeRating}⭐` });
-        await fetchCached();
+        toast({
+          title: "Reviews Refreshed!",
+          description: `Fetched ${result.reviewCount} reviews from Google. Rating: ${result.placeRating}⭐`,
+        });
+        await loadCached();
       }
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Could not connect to the refresh endpoint." });
+      toast({ variant: "destructive", title: "Error", description: "Could not refresh reviews." });
     } finally {
       setRefreshing(false);
     }
@@ -74,8 +70,8 @@ export default function AdminGoogleReviewsPage() {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        <div className="grid grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
@@ -91,39 +87,27 @@ export default function AdminGoogleReviewsPage() {
         <div>
           <h1 className="text-3xl font-display font-bold">Google Reviews</h1>
           <p className="text-muted-foreground mt-1">
-            Reviews are cached in Firestore and auto-refreshed every day at 3 AM UTC.
+            Reviews are fetched automatically once per day when the home page is visited.
           </p>
         </div>
         <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-          {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          {refreshing ? "Fetching from Google..." : "Refresh Now"}
+          {refreshing
+            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            : <RefreshCw className="mr-2 h-4 w-4" />}
+          {refreshing ? "Fetching from Google…" : "Refresh Now"}
         </Button>
       </div>
 
-      {/* Status cards */}
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Cached Reviews</p><p className="text-3xl font-bold">{reviews.length}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Google Rating</p><p className="text-3xl font-bold text-yellow-500">{meta?.placeRating?.toFixed(1) ?? "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total on Google</p><p className="text-3xl font-bold">{meta?.totalRatings?.toLocaleString() ?? "—"}</p></CardContent></Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Cached Reviews</p>
-            <p className="text-3xl font-bold">{reviews.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Google Rating</p>
-            <p className="text-3xl font-bold text-yellow-500">{meta?.placeRating?.toFixed(1) ?? "—"}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Reviews</p>
-            <p className="text-3xl font-bold">{meta?.totalRatings?.toLocaleString() ?? "—"}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Last Fetched</p>
-            <p className="text-sm font-semibold mt-1">
+            <p className="text-sm text-muted-foreground">Last Refreshed</p>
+            <p className="text-sm font-semibold mt-1 flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               {meta?.lastFetched
                 ? formatDistanceToNow(parseISO(meta.lastFetched), { addSuffix: true })
                 : "Never"}
@@ -132,33 +116,48 @@ export default function AdminGoogleReviewsPage() {
         </Card>
       </div>
 
-      {/* Info box */}
+      {/* How it works */}
       <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900">
         <CardContent className="p-4 flex items-start gap-3">
-          <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-            <p className="font-semibold">Automatic daily refresh</p>
-            <p>The Vercel cron job (<code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">0 3 * * *</code>) calls <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/api/refresh-reviews</code> every day at 3:00 AM UTC. Reviews are saved in Firestore — the home page reads from the cache, not Google's API directly. This keeps API usage at 1 call/day maximum.</p>
-            <p className="pt-1">To set up: add <strong>GOOGLE_PLACES_API_KEY</strong>, <strong>GOOGLE_PLACE_ID</strong>, and <strong>CRON_SECRET</strong> to your Vercel environment variables. The "Refresh Now" button works once you add <strong>NEXT_PUBLIC_CRON_SECRET_HINT</strong> too (or use the Vercel dashboard to trigger manually).</p>
+            <p className="font-semibold">How auto-refresh works</p>
+            <p>
+              When any visitor opens the home page, the site checks the <em>last refreshed</em> timestamp in Firestore.
+              If it's older than 24 hours, it silently fetches the latest reviews from Google Places API, saves them to
+              Firestore, and returns the fresh data — all in the same request. Subsequent visitors that day read from the
+              Firestore cache instantly (zero Google API calls). This guarantees at most <strong>1 API call per day</strong>.
+            </p>
+            <p className="pt-1">
+              Required Vercel environment variables: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">GOOGLE_PLACES_API_KEY</code> and{" "}
+              <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">GOOGLE_PLACE_ID</code>.
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Reviews preview */}
+      {/* Review cards */}
       {reviews.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4 text-center">
             <Globe className="h-12 w-12 text-muted-foreground/30" />
             <div>
               <p className="font-semibold text-lg">No reviews cached yet</p>
-              <p className="text-muted-foreground text-sm">Configure your Google Places API key and Place ID, then click "Refresh Now".</p>
+              <p className="text-muted-foreground text-sm">
+                Add <strong>GOOGLE_PLACES_API_KEY</strong> and <strong>GOOGLE_PLACE_ID</strong> to your Vercel env vars,
+                then click "Refresh Now" or wait for the next home page visit.
+              </p>
             </div>
+            <Button onClick={handleRefresh} disabled={refreshing}>
+              {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Fetch Reviews Now
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {reviews.map((r) => (
-            <Card key={r.id} className="overflow-hidden">
+            <Card key={r.id}>
               <CardContent className="p-4 space-y-3">
                 <Quote className="w-6 h-6 text-primary/30" />
                 <p className="text-sm text-muted-foreground line-clamp-4">{r.text || <em>No text</em>}</p>
@@ -175,7 +174,7 @@ export default function AdminGoogleReviewsPage() {
                     <p className="text-sm font-semibold truncate">{r.authorName}</p>
                     <p className="text-xs text-muted-foreground">{r.relativeTimeDescription}</p>
                   </div>
-                  <Badge variant="outline" className="text-xs">{r.rating}★</Badge>
+                  <Badge variant="outline" className="text-xs flex-shrink-0">{r.rating}★</Badge>
                 </div>
               </CardContent>
             </Card>
