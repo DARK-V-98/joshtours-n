@@ -13,6 +13,7 @@ import { getApprovedTestimonials, Testimonial } from "@/lib/testimonialActions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import TouristAttractions from "@/components/home/TouristAttractions";
+import GoogleReviews from "@/components/home/GoogleReviews";
 
 function Hero() {
   return (
@@ -427,6 +428,7 @@ export default function Index() {
         <WhyChooseUs />
         <FeaturedCars />
         <TouristAttractions />
+        <GoogleReviews />
         <Testimonials />
         <CTASection />
       </div>

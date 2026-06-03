@@ -13,6 +13,7 @@ import {
   Menu,
   Users,
   MapPin,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -44,6 +45,7 @@ export function AdminSidebar({ pendingBookings = 0, pendingTestimonials = 0 }: A
     { href: "/admin/billing", label: "Billing", icon: CreditCard, adminOnly: true },
     { href: "/admin/manual-booking", label: "Manual Booking", icon: FilePlus, adminOnly: true },
     { href: "/admin/attractions", label: "Attractions", icon: MapPin, adminOnly: true },
+    { href: "/admin/google-reviews", label: "Google Reviews", icon: Star, adminOnly: true },
     { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
   ];
 
