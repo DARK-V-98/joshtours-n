@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import TouristAttractions from "@/components/home/TouristAttractions";
 import GoogleReviews from "@/components/home/GoogleReviews";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 
 function Hero() {
   return (
@@ -61,6 +62,7 @@ function Hero() {
                   <ArrowRight className="w-5 h-5" />
                 </Link>
               </Button>
+              <WhatsAppButton size="xl" label="WhatsApp Us" message="Hi Josh Tours! I'm interested in renting a vehicle. Could you help me?" />
               <Button variant="heroOutline" size="xl" asChild>
                 <Link href="/contact">Get a Quote</Link>
               </Button>

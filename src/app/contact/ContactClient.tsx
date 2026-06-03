@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -38,7 +39,21 @@ export default function ContactClient() {
 
   return (
     <div className="container mx-auto px-4 py-12">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Quick WhatsApp contact */}
+        <Card className="border-[#25D366]/30 bg-[#25D366]/5">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6">
+            <div>
+              <h3 className="font-semibold text-lg">Need a quick reply?</h3>
+              <p className="text-muted-foreground text-sm">Chat with us directly on WhatsApp — we usually respond within minutes.</p>
+            </div>
+            <WhatsAppButton
+              className="w-full sm:w-auto flex-shrink-0"
+              message="Hi Josh Tours! I have a question about renting a vehicle."
+            />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-headline">Contact Us</CardTitle>
