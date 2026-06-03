@@ -14,7 +14,8 @@ import { createBookingRequest } from "@/lib/bookingActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar as CalendarIcon, CheckCircle, Loader2, Phone, Mail, User, Car as CarIcon, ArrowLeft, Route, UploadCloud, Eye } from "lucide-react";
+import { Calendar as CalendarIcon, CheckCircle, Loader2, Phone, Mail, User, Car as CarIcon, ArrowLeft, Route, UploadCloud, Eye, Copy, Check } from "lucide-react";
+import { WhatsAppButton, WHATSAPP_NUMBER, WhatsAppIcon } from "@/components/whatsapp-button";
 import {
   Form,
   FormControl,
@@ -185,6 +186,8 @@ export default function BookingForm({ car }: BookingFormProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [bookedDays, setBookedDays] = useState<Date[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [bookingSummary, setBookingSummary] = useState<string>("");
+  const [copied, setCopied] = useState(false);
 
   // Parse dates only on the client-side to avoid hydration errors
   useEffect(() => {
@@ -279,9 +282,48 @@ export default function BookingForm({ car }: BookingFormProps) {
     };
     
     await createBookingRequest(bookingData, documentFormData);
+
+    // Build a WhatsApp-ready booking summary so the customer can send it to us directly
+    const days = Math.max(
+      1,
+      Math.round((values.dateRange.returnDate.getTime() - values.dateRange.pickupDate.getTime()) / 86400000),
+    );
+    const summaryLines = [
+      `*New Booking Inquiry — JOSH TOURS*`,
+      ``,
+      `🚗 *Vehicle:* ${car.name} (${car.type})`,
+      `📅 *Pickup:* ${format(values.dateRange.pickupDate, 'PPP')}`,
+      `📅 *Return:* ${format(values.dateRange.returnDate, 'PPP')}`,
+      `🗓️ *Duration:* ${days} day${days > 1 ? 's' : ''}`,
+      values.estimatedKm ? `🛣️ *Estimated Mileage:* ${values.estimatedKm} km` : ``,
+      ``,
+      `👤 *Customer:* ${values.customerName}`,
+      `📞 *Phone:* ${values.customerPhone}`,
+      `🪪 *NIC/Passport:* ${values.customerNicOrPassport}`,
+      `🌍 *Residency:* ${values.customerResidency === 'local' ? 'Sri Lankan' : 'Tourist / Foreign'}`,
+      ``,
+      `🤝 *Guarantor:* ${values.guarantorName}`,
+      `📞 *Guarantor Phone:* ${values.guarantorPhone}`,
+      values.requests ? `\n📝 *Special Requests:* ${values.requests}` : ``,
+      ``,
+      `_I have submitted this inquiry on your website along with my documents. Please confirm availability._`,
+    ];
+
+    setBookingSummary(summaryLines.join('\n'));
     setIsSubmitted(true);
     form.reset();
   }
+
+  const handleCopySummary = async () => {
+    try {
+      await navigator.clipboard.writeText(bookingSummary);
+      setCopied(true);
+      toast({ title: "Copied!", description: "Booking details copied to clipboard." });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: "Please copy the details manually." });
+    }
+  };
   
   if (!car || !user) return null;
 
@@ -300,6 +342,38 @@ export default function BookingForm({ car }: BookingFormProps) {
                 <p className="text-muted-foreground">
                     Your request to book the <strong>{car.name}</strong> has been received. Our team will review the availability for your selected dates and the documents you have provided.
                 </p>
+                {/* Send booking details on WhatsApp */}
+                <div className="rounded-xl border-2 border-[#25D366]/30 bg-[#25D366]/5 p-5 text-left space-y-4">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#25D366]/15 flex items-center justify-center flex-shrink-0">
+                            <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold">Send us your booking on WhatsApp</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Tap below to open WhatsApp with your booking details pre-filled — just hit send and we'll confirm fast.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Preview of the auto-filled message */}
+                    <pre className="text-xs bg-background/70 border rounded-lg p-3 max-h-40 overflow-y-auto whitespace-pre-wrap font-sans text-muted-foreground">
+                        {bookingSummary}
+                    </pre>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <WhatsAppButton
+                            className="flex-1"
+                            label="Send on WhatsApp"
+                            message={bookingSummary}
+                        />
+                        <Button size="lg" variant="outline" className="flex-1" onClick={handleCopySummary}>
+                            {copied ? <Check className="mr-2 h-4 w-4 text-green-600" /> : <Copy className="mr-2 h-4 w-4" />}
+                            {copied ? "Copied!" : "Copy Details"}
+                        </Button>
+                    </div>
+                </div>
+
                 <Alert>
                     <Mail className="h-4 w-4"/>
                     <AlertTitle>What's Next?</AlertTitle>
@@ -307,8 +381,8 @@ export default function BookingForm({ car }: BookingFormProps) {
                         We will contact you shortly to confirm your booking. You can check the status on your bookings page.
                     </AlertDescription>
                 </Alert>
-                <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Button size="lg" className="flex-1" asChild>
+                <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                    <Button size="lg" variant="secondary" className="flex-1" asChild>
                        <a href="tel:+94701209694"><Phone className="mr-2"/>Call JOSH TOURS</a>
                     </Button>
                     <Button size="lg" variant="secondary" className="flex-1" asChild>
